@@ -48,6 +48,27 @@ export const projects = [
     ],
     status: "completed",
   },
+  {
+    name: "Papers, Please",
+    description:
+      "A retrieval pipeline for scientific papers that automates PDF ingestion, OCR, document chunking, embedding, and semantic search.",
+    repository: "https://github.com/fcoelhomrc/papers-please",
+    coverImage: "papers-please.png",
+    coverAlt: "Architecture of the scientific paper ingestion and semantic search pipeline",
+    tags: [
+      "Python",
+      "Retrieval-Augmented Generation (RAG)",
+      "Semantic Search",
+      "NLP",
+      "Embeddings",
+      "Vector Databases",
+      "Document AI / OCR",
+      "FastAPI",
+      "PostgreSQL",
+      "Docker",
+    ],
+    status: "completed",
+  },
 ] satisfies Array<{
   name: string;
   description: string;

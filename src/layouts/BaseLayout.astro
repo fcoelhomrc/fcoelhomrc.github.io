@@ -19,7 +19,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
 const root = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/`;
 const hasSocialImage = existsSync(new URL(`../../public/${image}`, import.meta.url));
 const socialImage = new URL(
-  `${root}${hasSocialImage ? image.replace(/^\//, "") : "favicon.svg"}`,
+  `${root}${hasSocialImage ? image.replace(/^\//, "") : "favicon.png"}`,
   Astro.site,
 );
 const plausibleDomain = import.meta.env.PUBLIC_PLAUSIBLE_DOMAIN;
@@ -35,7 +35,7 @@ const path = Astro.url.pathname;
     <meta name="description" content={description} />
     <meta name="theme-color" content="#191724" />
     <link rel="canonical" href={canonical} />
-    <link rel="icon" href={`${root}favicon.svg`} type="image/svg+xml" />
+    <link rel="icon" href={`${root}favicon.png`} type="image/png" />
     <link rel="alternate" type="application/rss+xml" title={`${profile.name} blog`} href={`${root}rss.xml`} />
     <meta property="og:type" content="website" />
     <meta property="og:title" content={pageTitle} />
@@ -66,7 +66,13 @@ const path = Astro.url.pathname;
     </header>
     <main class="shell"><slot /></main>
     <footer class="site-footer">
-      <div class="shell">© {new Date().getFullYear()} {profile.name}</div>
+      <div class="shell footer-content">
+        <span>© {new Date().getFullYear()} {profile.name}</span>
+        <a class="rose-pine-credit" href="https://rosepinetheme.com/">
+          <img src={`${root}rose-pine.png`} width="20" height="20" alt="" />
+          Made with Rosé Pine
+        </a>
+      </div>
     </footer>
   </body>
 </html>

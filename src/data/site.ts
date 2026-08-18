@@ -49,7 +49,7 @@ export const projects = [
     status: "completed",
   },
   {
-    name: "Papers, Please",
+    name: "Scientific Paper Semantic Search",
     description:
       "A retrieval pipeline for scientific papers that automates PDF ingestion, OCR, document chunking, embedding, and semantic search.",
     repository: "https://github.com/fcoelhomrc/papers-please",

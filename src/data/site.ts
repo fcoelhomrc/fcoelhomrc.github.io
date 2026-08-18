@@ -69,6 +69,26 @@ export const projects = [
     ],
     status: "completed",
   },
+  {
+    name: "Automated Product Tagging",
+    description:
+      "A prototype for extracting structured marketplace attributes from listing images and text, with dataset collection and labeling workflows plus local VLM experiments.",
+    repository: "https://github.com/fcoelhomrc/autotagging",
+    coverImage: "automated-product-tagging.png",
+    coverAlt: "Dataset and local VLM workflows for automated marketplace product tagging",
+    tags: [
+      "Python",
+      "Computer Vision",
+      "Vision-Language Models",
+      "Multimodal AI",
+      "Structured Outputs",
+      "PyTorch",
+      "Hugging Face Transformers",
+      "Data Pipelines",
+      "Model Evaluation",
+    ],
+    status: "completed",
+  },
 ] satisfies Array<{
   name: string;
   description: string;

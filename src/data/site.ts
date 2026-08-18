@@ -109,6 +109,28 @@ export const projects = [
     ],
     status: "completed",
   },
+  {
+    name: "Multimodal Survival Modeling Pipeline",
+    description:
+      "A multimodal model that combines MRI, pathology slides, and clinical records to predict patient outcomes over time. It placed 5th of 22 teams in the CHIMERA 2025 challenge.",
+    repository: "https://github.com/fcoelhomrc/chimera",
+    coverImage: "multimodal-survival-modeling.png",
+    coverAlt: "Multimodal feature extraction and late-fusion architecture",
+    tags: [
+      "Python",
+      "PyTorch",
+      "Multimodal Learning",
+      "Deep Learning",
+      "Computer Vision",
+      "Survival Analysis",
+      "Medical Imaging",
+      "Feature Fusion",
+      "Hydra",
+      "Weights & Biases",
+      "Docker",
+    ],
+    status: "completed",
+  },
 ] satisfies Array<{
   name: string;
   description: string;

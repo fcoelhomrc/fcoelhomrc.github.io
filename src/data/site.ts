@@ -31,7 +31,7 @@ export const projects = [
     status: "active",
   },
   {
-    name: "Jellyfin Media Server",
+    name: "Self-Hosted Media Stack",
     description:
       "A Kubernetes-managed media server for my homelab, combining Jellyfin with an automated request, library management, and download stack.",
     repository: "https://github.com/fcoelhomrc/jellyfin-media-server",

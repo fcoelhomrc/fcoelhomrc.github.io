@@ -32,13 +32,27 @@ const root = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/`;
       {projects.map((project) => (
         <article class="card">
           {project.coverImage && (
-            <div class="card-cover">
-              <img
-                src={`${root}${project.coverImage}`}
-                alt={project.coverAlt ?? ""}
-                loading="lazy"
-              />
-            </div>
+            project.repository ? (
+              <a
+                class="card-cover card-cover-link"
+                href={project.repository}
+                aria-label={`View ${project.name} repository`}
+              >
+                <img
+                  src={`${root}${project.coverImage}`}
+                  alt={project.coverAlt ?? ""}
+                  loading="lazy"
+                />
+              </a>
+            ) : (
+              <div class="card-cover">
+                <img
+                  src={`${root}${project.coverImage}`}
+                  alt={project.coverAlt ?? ""}
+                  loading="lazy"
+                />
+              </div>
+            )
           )}
           <div class="card-header">
             <h3>

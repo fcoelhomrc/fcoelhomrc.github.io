@@ -118,6 +118,9 @@ h3 { margin: 0; font-size: 1.15rem; }
   height: 100%;
   object-fit: contain;
 }
+.card-cover-link { display: block; }
+.card-cover-link:hover { border-color: var(--rose); }
+.card-cover-link:focus-visible { outline: 2px solid var(--foam); outline-offset: 3px; }
 .card p { color: var(--subtle); }
 .card-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .card-title { color: var(--text); text-decoration: none; }

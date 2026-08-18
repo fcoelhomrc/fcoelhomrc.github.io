@@ -1,0 +1,70 @@
+---
+import "../styles/global.css";
+import { profile } from "../data/site";
+
+interface Props {
+  title?: string;
+  description?: string;
+  image?: string;
+}
+
+const {
+  title,
+  description = profile.summary,
+  image = "/avatar.svg",
+} = Astro.props;
+const pageTitle = title ? `${title} | ${profile.name}` : `${profile.name} | ${profile.role}`;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const root = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/`;
+const socialImage = new URL(
+  `${root}${image.replace(/^\//, "")}`,
+  Astro.site,
+);
+const plausibleDomain = import.meta.env.PUBLIC_PLAUSIBLE_DOMAIN;
+const path = Astro.url.pathname;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#191724" />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href={`${root}favicon.svg`} type="image/svg+xml" />
+    <link rel="alternate" type="application/rss+xml" title={`${profile.name} blog`} href={`${root}rss.xml`} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={socialImage} />
+    <meta name="twitter:card" content="summary" />
+    <title>{pageTitle}</title>
+    {plausibleDomain && <script is:inline defer data-domain={plausibleDomain} src="https://plausible.io/js/script.js"></script>}
+    <script is:inline type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Person",
+      name: profile.name,
+      url: new URL(root, Astro.site),
+      jobTitle: profile.role,
+      sameAs: [profile.github, profile.linkedin],
+    })} />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="shell nav" aria-label="Main navigation">
+        <a class="brand" href={root}>{profile.name}</a>
+        <div class="nav-links">
+          <a href={`${root}#projects`}>Projects</a>
+          <a href={`${root}blog/`} aria-current={path.includes("/blog") ? "page" : undefined}>Blog</a>
+        </div>
+      </nav>
+    </header>
+    <main class="shell"><slot /></main>
+    <footer class="site-footer">
+      <div class="shell">© {new Date().getFullYear()} {profile.name}</div>
+    </footer>
+  </body>
+</html>

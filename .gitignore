@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.astro/
+.devenv*
+.direnv/
+devenv.local.nix
+devenv.local.yaml
+.env

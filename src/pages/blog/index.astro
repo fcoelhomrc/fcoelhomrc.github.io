@@ -1,0 +1,26 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+const posts = (await getCollection("blog", ({ data }) => import.meta.env.DEV || !data.draft))
+  .sort((a, b) => b.data.published.valueOf() - a.data.published.valueOf());
+const date = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
+const root = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/`;
+---
+
+<BaseLayout title="Blog" description="Notes on software, data, and building useful things.">
+  <p class="eyebrow">Blog</p>
+  <h1>Writing</h1>
+  <p class="lede">Notes on software, data, and building useful things.</p>
+  <section class="section">
+    <ul class="post-list">
+      {posts.map((post) => (
+        <li>
+          <time datetime={post.data.published.toISOString()}>{date.format(post.data.published)}</time>
+          <h2><a class="card-title" href={`${root}blog/${post.id}/`}>{post.data.title}</a></h2>
+          <p>{post.data.description}</p>
+        </li>
+      ))}
+    </ul>
+  </section>
+</BaseLayout>

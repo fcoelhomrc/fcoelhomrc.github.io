@@ -1,12 +1,12 @@
 export const profile = {
-  name: "Felipe Coelho",
-  role: "Software engineer",
-  location: "Lisbon, Portugal",
+  name: "Felipe Coutinho",
+  role: "AI Engineer",
+  location: "Porto, Portugal",
   summary:
-    "I build reliable software, data tools, and focused products. I care about clear systems and useful outcomes.",
-  email: "hello@example.com",
+    "I build AI systems across the stack, backed by 5+ years in computer vision and far too many hours tweaking NixOS.",
+  email: "fcoelho.mrc at gmail dot com",
   github: "https://github.com/fcoelhomrc",
-  linkedin: "https://www.linkedin.com/in/your-profile/",
+  linkedin: "https://www.linkedin.com/in/fcoelhomrc/",
   image: "profile.jpg",
 };
 

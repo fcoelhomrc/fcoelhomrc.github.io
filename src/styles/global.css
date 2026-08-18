@@ -88,15 +88,6 @@ h3 { margin: 0; font-size: 1.15rem; }
   object-fit: cover;
 }
 
-.portrait-placeholder {
-  display: grid;
-  place-items: center;
-  background: var(--overlay);
-  color: var(--subtle);
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
 .lede { max-width: 42rem; color: var(--subtle); font-size: 1.1rem; }
 .meta { color: var(--muted); }
 .links { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; margin-top: 1.4rem; }

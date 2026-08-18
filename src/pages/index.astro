@@ -1,6 +1,5 @@
 ---
 import { getCollection } from "astro:content";
-import { existsSync } from "node:fs";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { profile, projects } from "../data/site";
 
@@ -9,16 +8,11 @@ const posts = (await getCollection("blog", ({ data }) => import.meta.env.DEV || 
   .slice(0, 3);
 const date = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
 const root = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/`;
-const hasProfileImage = existsSync(new URL("../../public/profile.jpg", import.meta.url));
 ---
 
 <BaseLayout>
   <section class="intro">
-    {hasProfileImage ? (
-      <img class="portrait" src={`${root}${profile.image}`} width="160" height="160" alt={`Portrait of ${profile.name}`} />
-    ) : (
-      <div class="portrait portrait-placeholder" role="img" aria-label={`Photo of ${profile.name} not added yet`}>FC</div>
-    )}
+    <img class="portrait" src={`${root}${profile.image}`} width="160" height="160" alt={`Portrait of ${profile.name}`} />
     <div>
       <p class="eyebrow">{profile.role}</p>
       <h1>{profile.name}</h1>

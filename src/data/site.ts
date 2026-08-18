@@ -7,6 +7,7 @@ export const profile = {
   email: "hello@example.com",
   github: "https://github.com/fcoelhomrc",
   linkedin: "https://www.linkedin.com/in/your-profile/",
+  image: "profile.jpg",
 };
 
 export const projects = [
@@ -16,6 +17,7 @@ export const projects = [
       "A short description of the problem, the approach, and why the project matters.",
     repository: "https://github.com/fcoelhomrc",
     tags: ["Python", "Data", "Nix"],
+    status: "active",
   },
   {
     name: "Another project",
@@ -23,5 +25,12 @@ export const projects = [
       "Replace this card with a project that shows your work and the decisions behind it.",
     repository: "https://github.com/fcoelhomrc",
     tags: ["TypeScript", "Astro"],
+    status: "completed",
   },
-];
+] satisfies Array<{
+  name: string;
+  description: string;
+  repository: string;
+  tags: string[];
+  status: "active" | "completed";
+}>;

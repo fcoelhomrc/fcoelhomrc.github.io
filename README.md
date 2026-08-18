@@ -11,9 +11,11 @@ npm install
 dev
 ```
 
-Edit personal details and projects in `src/data/site.ts`. Replace
-`public/avatar.svg` with a photo and update the image path in the two Astro
-files that reference it.
+Edit personal details and projects in `src/data/site.ts`. Set each project's
+`status` to `active` or `completed`.
+
+Put your profile photo at `public/profile.jpg`. Change `profile.image` in
+`src/data/site.ts` only if you use another filename.
 
 Add posts to `src/content/blog`. A post with `draft: true` is visible during
 local development and excluded from production builds.

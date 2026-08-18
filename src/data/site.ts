@@ -12,7 +12,7 @@ export const profile = {
 
 export const projects = [
   {
-    name: "Pocy Demo",
+    name: "Humanoid Robot Evaluation Suite",
     description:
       "An evaluation suite for humanoid robots that uses vision-language models to automatically score task success and execution quality from video and sensor data.",
     coverImage: "pocy-demo.png",

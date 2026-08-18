@@ -12,25 +12,48 @@ export const profile = {
 
 export const projects = [
   {
-    name: "Project name",
+    name: "Pocy Demo",
     description:
-      "A short description of the problem, the approach, and why the project matters.",
-    repository: "https://github.com/fcoelhomrc",
-    tags: ["Python", "Data", "Nix"],
+      "An evaluation suite for humanoid robots that uses vision-language models to automatically score task success and execution quality from video and sensor data.",
+    coverImage: "pocy-demo.png",
+    coverAlt: "Pocy Demo humanoid robot task evaluation interface",
+    tags: [
+      "Python",
+      "PyTorch",
+      "Hugging Face Transformers",
+      "Vision-Language Models",
+      "LoRA / SFT",
+      "GRPO",
+      "MLOps",
+      "Google Cloud (GCP)",
+      "Docker",
+    ],
     status: "active",
   },
   {
-    name: "Another project",
+    name: "Jellyfin Media Server",
     description:
-      "Replace this card with a project that shows your work and the decisions behind it.",
-    repository: "https://github.com/fcoelhomrc",
-    tags: ["TypeScript", "Astro"],
+      "A Kubernetes-managed media server for my homelab, combining Jellyfin with an automated request, library management, and download stack.",
+    repository: "https://github.com/fcoelhomrc/jellyfin-media-server",
+    coverImage: "jellyfin-media-server.svg",
+    coverAlt: "Application flow for the Kubernetes-managed Jellyfin media stack",
+    tags: [
+      "Kubernetes",
+      "Docker",
+      "Container Orchestration",
+      "Infrastructure as Code",
+      "Linux",
+      "Networking",
+      "DevOps",
+    ],
     status: "completed",
   },
 ] satisfies Array<{
   name: string;
   description: string;
-  repository: string;
+  repository?: string;
+  coverImage?: string;
+  coverAlt?: string;
   tags: string[];
   status: "active" | "completed";
 }>;

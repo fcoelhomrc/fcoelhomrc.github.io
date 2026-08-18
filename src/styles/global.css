@@ -99,10 +99,18 @@ h3 { margin: 0; font-size: 1.15rem; }
 
 .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
 .card {
+  overflow: hidden;
   padding: 1.4rem;
   border: 1px solid var(--border);
   border-radius: 0.8rem;
   background: var(--surface);
+}
+.card-cover {
+  width: calc(100% + 2.8rem);
+  aspect-ratio: 16 / 9;
+  margin: -1.4rem -1.4rem 1.4rem;
+  border-bottom: 1px solid var(--border);
+  object-fit: cover;
 }
 .card p { color: var(--subtle); }
 .card-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }

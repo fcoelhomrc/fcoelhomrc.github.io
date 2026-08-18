@@ -89,6 +89,26 @@ export const projects = [
     ],
     status: "completed",
   },
+  {
+    name: "Image Classification Serving Pipeline",
+    description:
+      "An end-to-end pipeline for training, tracking, promoting, containerizing, and deploying image classification models behind an inference API on AWS.",
+    repository: "https://github.com/fcoelhomrc/ml-model-serving",
+    tags: [
+      "Python",
+      "PyTorch",
+      "MLOps",
+      "Model Serving",
+      "MLflow",
+      "FastAPI",
+      "Docker",
+      "AWS",
+      "Terraform",
+      "Ansible",
+      "CI/CD",
+    ],
+    status: "completed",
+  },
 ] satisfies Array<{
   name: string;
   description: string;

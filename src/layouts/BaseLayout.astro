@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import { profile } from "../data/site";
+import Analytics from "../components/Analytics.astro";
 
 interface Props {
   title?: string;
@@ -72,5 +73,6 @@ const path = Astro.url.pathname;
         </a>
       </div>
     </footer>
+    <Analytics />
   </body>
 </html>

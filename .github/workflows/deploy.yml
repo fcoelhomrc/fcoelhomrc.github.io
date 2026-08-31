@@ -26,6 +26,8 @@ jobs:
           SITE_URL: ${{ vars.SITE_URL || 'https://fcoelhomrc.github.io' }}
           BASE_PATH: ${{ vars.BASE_PATH || '/' }}
           PUBLIC_PLAUSIBLE_DOMAIN: ${{ vars.PUBLIC_PLAUSIBLE_DOMAIN }}
+          PUBLIC_POSTHOG_KEY: ${{ vars.PUBLIC_POSTHOG_KEY }}
+          PUBLIC_POSTHOG_HOST: ${{ vars.PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com' }}
         run: npm ci && npm run build
       - name: Publish gh-pages branch
         uses: peaceiris/actions-gh-pages@v4

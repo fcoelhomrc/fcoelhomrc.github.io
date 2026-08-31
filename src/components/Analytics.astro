@@ -1,0 +1,92 @@
+<script>
+  // The key is inlined at build time, so when PUBLIC_POSTHOG_KEY is unset this
+  // branch is dead code and the posthog-js chunk is dropped from the bundle.
+  const posthogKey = import.meta.env.PUBLIC_POSTHOG_KEY;
+
+  if (posthogKey) {
+    import("posthog-js").then(({ default: posthog }) => {
+      posthog.init(posthogKey, {
+        api_host: import.meta.env.PUBLIC_POSTHOG_HOST || "https://eu.i.posthog.com",
+        defaults: "2026-08-30",
+        person_profiles: "identified_only",
+        // No cookies, no local storage, so there is nothing to consent to and no
+        // banner. Identity comes from a salted server-side hash instead, which
+        // rotates daily -- a repeat visitor counts as a new person each day.
+        // Requires "cookieless server hash mode" in Project Settings > Web
+        // analytics, otherwise every event below is dropped at ingestion.
+        cookieless_mode: "always",
+        // $pageleave carries time-on-page and max scroll depth.
+        capture_pageleave: true,
+        enable_heatmaps: true,
+      });
+
+      trackOutboundClicks(posthog);
+      trackProjectViews(posthog);
+    });
+  }
+
+  type PostHog = typeof import("posthog-js").default;
+
+  /** One `outbound_click` for any link leaving the site: repos, socials, CV, email. */
+  function trackOutboundClicks(posthog: PostHog) {
+    document.addEventListener("click", (event) => {
+      if (!(event.target instanceof Element)) return;
+      const link = event.target.closest("a[href]");
+      if (!(link instanceof HTMLAnchorElement)) return;
+
+      const isEmail = link.protocol === "mailto:";
+      const isExternal = Boolean(link.host) && link.host !== window.location.host;
+      if (!isEmail && !isExternal) return;
+
+      const card = link.closest("[data-project]");
+      posthog.capture("outbound_click", {
+        link_name: link.dataset.track ?? null,
+        link_host: isEmail ? "email" : link.host,
+        link_url: link.href,
+        link_text: link.textContent?.trim().slice(0, 80) || link.getAttribute("aria-label"),
+        project: card instanceof HTMLElement ? card.dataset.project : undefined,
+      });
+    });
+  }
+
+  /**
+   * Every project lives on the same URL, so pageviews cannot tell them apart.
+   * A card counts as viewed once it has been 40% visible for a full second,
+   * which separates actually reading it from scrolling past.
+   */
+  function trackProjectViews(posthog: PostHog) {
+    const cards = document.querySelectorAll("[data-project]");
+    if (!cards.length || !("IntersectionObserver" in window)) return;
+
+    const pending = new Map<Element, number>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const card = entry.target;
+          if (entry.isIntersecting) {
+            if (pending.has(card)) continue;
+            pending.set(
+              card,
+              window.setTimeout(() => {
+                pending.delete(card);
+                observer.unobserve(card);
+                posthog.capture("project_viewed", {
+                  project: card instanceof HTMLElement ? card.dataset.project : undefined,
+                });
+              }, 1000),
+            );
+          } else {
+            const timer = pending.get(card);
+            if (timer !== undefined) {
+              clearTimeout(timer);
+              pending.delete(card);
+            }
+          }
+        }
+      },
+      { threshold: 0.4 },
+    );
+
+    for (const card of cards) observer.observe(card);
+  }
+</script>

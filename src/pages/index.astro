@@ -22,6 +22,7 @@ const root = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/`;
         <a href={profile.github} data-track="profile-github">GitHub</a>
         <a href={profile.linkedin} data-track="profile-linkedin">LinkedIn</a>
         <a href={`mailto:${profile.email}`} data-track="profile-email">Email</a>
+        <a href={`${root}${profile.cv}`} data-track="profile-cv">CV</a>
       </div>
     </div>
   </section>

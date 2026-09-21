@@ -8,6 +8,7 @@ export const profile = {
   github: "https://github.com/fcoelhomrc",
   linkedin: "https://www.linkedin.com/in/fcoelhomrc/",
   image: "profile.jpg",
+  cv: "felipe-coutinho-cv.pdf",
 };
 
 export const projects = [

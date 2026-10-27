@@ -32,6 +32,25 @@ export const projects = [
     status: "active",
   },
   {
+    name: "Personal AI Assistant",
+    description:
+      "A self-hosted AI assistant on my Kubernetes homelab that triages my email, drafts replies, and answers questions over my mail and notes through MCP tools, with local LLMs and every run traced and evaluated.",
+    coverImage: "personal-ai-assistant.png",
+    coverAlt: "Architecture of the self-hosted assistant: agent, MCP tool servers, local models and tracing on k3s",
+    tags: [
+      "Python",
+      "LLM Agents",
+      "Model Context Protocol (MCP)",
+      "vLLM",
+      "llama.cpp",
+      "Kubernetes",
+      "MLflow",
+      "OpenTelemetry",
+      "Model Evaluation",
+    ],
+    status: "active",
+  },
+  {
     name: "Self-Hosted Media Stack",
     description:
       "A Kubernetes-managed media server for my homelab, combining Jellyfin with an automated request, library management, and download stack.",

@@ -130,6 +130,25 @@ export const projects = [
     status: "completed",
   },
   {
+    name: "Chemotherapy Response Prediction from CT",
+    description:
+      "A vision transformer model that predicts how ovarian cancer patients will respond to chemotherapy from the CT scan taken before treatment, combined with clinical markers. Published in IJCARS 2026.",
+    coverImage: "crs-prediction.png",
+    coverAlt: "Imaging and clinical branches fused by an MLP head to predict chemotherapy response",
+    tags: [
+      "Python",
+      "PyTorch",
+      "Vision Transformers",
+      "Hugging Face Transformers",
+      "Medical Imaging",
+      "Computer Vision",
+      "Multimodal Learning",
+      "Model Evaluation",
+      "Weights & Biases",
+    ],
+    status: "completed",
+  },
+  {
     name: "Multimodal Survival Modeling Pipeline",
     description:
       "A multimodal model that combines MRI, pathology slides, and clinical records to predict patient outcomes over time. It placed 5th of 22 teams in the CHIMERA 2025 challenge.",

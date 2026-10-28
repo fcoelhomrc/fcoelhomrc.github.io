@@ -1,0 +1,67 @@
+---
+// Shared chrome for a chart: title, view switcher, legend, plot, data table
+// and source line. Each chart component draws its SVG into the default slot.
+import "./viz.css";
+
+interface Table {
+  columns: string[];
+  rows: (string | number)[][];
+}
+
+interface Props {
+  title: string;
+  subtitle?: string;
+  views?: string[];
+  legend?: { name: string; color: string; kind?: "line" | "rect" | "dash" }[];
+  tables: Table[];
+  source?: string;
+}
+
+const { title, subtitle, views = [], legend = [], tables, source } = Astro.props;
+---
+
+<figure class="viz" data-view="0">
+  <figcaption class="viz-head">
+    <span class="viz-title">{title}</span>
+    {subtitle && <span class="viz-subtitle">{subtitle}</span>}
+  </figcaption>
+  {views.length > 1 && (
+    <div class="viz-views" role="group" aria-label="Choose a view">
+      {views.map((v, i) => (
+        <button type="button" data-view={i} aria-pressed={i === 0 ? "true" : "false"}>{v}</button>
+      ))}
+    </div>
+  )}
+  {legend.length > 1 && (
+    <ul class="viz-legend">
+      {legend.map((l) => (
+        <li>
+          <span class:list={["viz-key", l.kind ?? "rect"]} style={`--key:${l.color}`}></span>
+          {l.name}
+        </li>
+      ))}
+    </ul>
+  )}
+  <div class="viz-plot">
+    <slot />
+  </div>
+  <details class="viz-table">
+    <summary>Show the data</summary>
+    {tables.map((t, i) => (
+      <div data-view-panel={String(i)} style={i === 0 ? "" : "display:none"}>
+        {views.length > 1 && <p class="viz-table-view">{views[i]}</p>}
+        <table>
+          <thead><tr>{t.columns.map((c) => <th scope="col">{c}</th>)}</tr></thead>
+          <tbody>
+            {t.rows.map((r) => <tr>{r.map((c, j) => (j === 0 ? <th scope="row">{c}</th> : <td>{c}</td>))}</tr>)}
+          </tbody>
+        </table>
+      </div>
+    ))}
+  </details>
+  {source && <p class="viz-source">{source}</p>}
+</figure>
+
+<script>
+  import "./viz.ts";
+</script>

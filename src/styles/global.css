@@ -155,6 +155,22 @@ h3 { margin: 0; font-size: 1.15rem; }
 .prose :not(pre) > code { padding: 0.12rem 0.35rem; border-radius: 0.25rem; background: var(--overlay); }
 .prose pre { overflow-x: auto; padding: 1rem; border: 1px solid var(--border); border-radius: 0.6rem; }
 .prose blockquote { margin-left: 0; padding-left: 1rem; border-left: 2px solid var(--pine); color: var(--subtle); }
+.prose h3 { margin-top: 2rem; }
+.prose table { display: block; overflow-x: auto; margin: 1.5rem 0; border-collapse: collapse; font-size: 0.92rem; font-variant-numeric: tabular-nums; }
+.prose th, .prose td { padding: 0.45rem 0.8rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+.prose thead th { color: var(--subtle); font-weight: 600; }
+.prose li + li { margin-top: 0.3rem; }
+
+.diagram { margin: 2.25rem 0; }
+.diagram a { display: block; border: 1px solid var(--border); border-radius: 0.8rem; overflow: hidden; background: var(--surface); }
+.diagram img { width: 100%; height: auto; margin-inline: auto; }
+.diagram figcaption { margin-top: 0.6rem; color: var(--muted); font-size: 0.85rem; }
+
+.series { margin: 0 0 2.5rem; padding: 1rem 1.2rem; border: 1px solid var(--border); border-radius: 0.8rem; background: var(--surface); }
+.series-title { margin: 0 0 0.4rem; color: var(--love); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.series ol { margin: 0; padding-left: 1.2rem; }
+.series li { color: var(--subtle); }
+.series [aria-current] { color: var(--text); font-weight: 600; }
 
 .site-footer { padding-block: 2rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.88rem; }
 .footer-content { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 1.5rem; }

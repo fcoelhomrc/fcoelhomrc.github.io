@@ -1,0 +1,29 @@
+# Render: d2 --sketch --layout elk --pad 30 judge.d2 judge.svg
+...@_style
+direction: right
+
+cases: 83 statements\nreal abstracts as context\n9 failure types {class: box}
+
+human: Human labels {
+  class: group
+  blind: Labelling page\nanswers and case types hidden {class: human}
+  labels: 81 usable labels\n2 unsure, dropped {class: human}
+  blind -> labels
+}
+
+model: Judge under test {
+  class: group
+  prompt: One question\ndoes the context support it? {class: box}
+  judge: DeepSeek V4 Flash\nreplies 1 or 0 {class: model}
+  prompt -> judge
+}
+
+kappa: Cohen's kappa 0.83\naccuracy 0.91 {class: result}
+
+cases -> human.blind
+cases -> model.prompt
+human.labels -> kappa
+model.judge -> kappa
+
+(** -> **)[*].style.stroke: "#908caa"
+(** -> **)[*].style.font-color: "#908caa"

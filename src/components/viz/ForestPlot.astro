@@ -1,0 +1,78 @@
+---
+// Paired differences with 95% intervals, one row per item. An interval that
+// crosses the zero line is a tie.
+import Frame from "./Frame.astro";
+import { fmt } from "./palette";
+
+interface Point { name: string; value: number; lo: number; hi: number }
+interface Props {
+  title: string;
+  subtitle?: string;
+  xLabel: string;
+  xDomain: [number, number];
+  xStep: number;
+  rows: { label: string; points: Point[] }[];
+  colors: Record<string, string>;
+  rowLabel?: string;
+  source?: string;
+}
+
+const { title, subtitle, xLabel, xDomain, xStep, rows, colors, rowLabel = "", source } = Astro.props;
+
+const nPts = Math.max(...rows.map((r) => r.points.length));
+const rowH = 18 + nPts * 14;
+const W = 640, L = 160, R = 24, T = 10, B = 40;
+const H = T + rows.length * rowH + B;
+const sx = (v: number) => L + ((v - xDomain[0]) / (xDomain[1] - xDomain[0])) * (W - L - R);
+const ticks: number[] = [];
+for (let v = xDomain[0]; v <= xDomain[1] + 1e-9; v += xStep) ticks.push(Math.round(v * 1000) / 1000);
+const sign = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + fmt(Math.abs(v));
+const verdict = (p: Point) => (p.lo > 0 || p.hi < 0 ? "significant" : "tie");
+
+const names = [...new Set(rows.flatMap((r) => r.points.map((p) => p.name)))];
+const legend = names.map((n) => ({ name: n, color: colors[n], kind: "rect" as const }));
+const tables = [{
+  columns: [rowLabel || "Item", ...names.map((n) => `${n} (95% CI)`)],
+  rows: rows.map((r) => [
+    r.label,
+    ...names.map((n) => {
+      const p = r.points.find((p) => p.name === n);
+      return p ? `${sign(p.value)} (${sign(p.lo)} to ${sign(p.hi)}), ${verdict(p)}` : "–";
+    }),
+  ]),
+}];
+---
+
+<Frame title={title} subtitle={subtitle} legend={legend} tables={tables} source={source}>
+  <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={title}>
+    {ticks.map((v) => (
+      <g>
+        <line class={v === 0 ? "viz-ref" : "viz-grid"} x1={sx(v)} x2={sx(v)} y1={T} y2={H - B} />
+        <text x={sx(v)} y={H - B + 16} text-anchor="middle">{v === 0 ? "0" : (v > 0 ? "+" : "−") + Math.abs(v).toFixed(2)}</text>
+      </g>
+    ))}
+    <text class="viz-axis-title" x={(L + W - R) / 2} y={H - 6} text-anchor="middle">{xLabel}</text>
+    {rows.map((r, ri) => {
+      const y0 = T + ri * rowH;
+      return (
+        <g>
+          <text class="viz-label" x={L - 12} y={y0 + rowH / 2 + 4} text-anchor="end">{r.label}</text>
+          {r.points.map((p, pi) => {
+            const y = y0 + 9 + pi * 14 + 7;
+            const tip = JSON.stringify({
+              title: `${r.label}, ${p.name}`,
+              rows: [{ name: `95% CI ${sign(p.lo)} to ${sign(p.hi)}, ${verdict(p)}`, color: colors[p.name], value: sign(p.value) }],
+            });
+            return (
+              <g data-tip={tip} tabindex="0">
+                <rect class="viz-hitbox" x={sx(p.lo) - 6} y={y - 7} width={sx(p.hi) - sx(p.lo) + 12} height="14" />
+                <line class="viz-mark" x1={sx(p.lo)} x2={sx(p.hi)} y1={y} y2={y} stroke={colors[p.name]} stroke-width="2" stroke-linecap="round" />
+                <circle class="viz-mark viz-dot" cx={sx(p.value)} cy={y} r="4.5" fill={colors[p.name]} />
+              </g>
+            );
+          })}
+        </g>
+      );
+    })}
+  </svg>
+</Frame>

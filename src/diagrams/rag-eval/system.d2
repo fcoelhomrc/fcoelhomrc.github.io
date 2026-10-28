@@ -1,0 +1,33 @@
+# Render: d2 --sketch --layout elk --pad 30 system.d2 system.svg
+...@_style
+direction: right
+
+ingest: Ingest workers {
+  class: group
+  scholar: Semantic Scholar\narXiv PDFs {class: box}
+  chunk: Docling OCR\n256-token chunks {class: box}
+  embed: Embed\n4 encoders {class: model}
+  scholar -> chunk -> embed
+}
+
+query: Query path {
+  class: group
+  ui: Web app {class: box}
+  agent: LangGraph agent\n4 tools {class: model}
+  retrieve: Retrieval\nBM25 + dense + RRF {class: box}
+  ui -> agent -> retrieve
+}
+
+pg: Postgres\nchunks, full-text index {class: store}
+pinecone: Pinecone\nvectors {class: store}
+phoenix: Phoenix\ntraces {class: store}
+
+ingest.chunk -> pg
+ingest.embed -> pinecone
+query.retrieve -> pg
+query.retrieve -> pinecone
+query.agent -> phoenix {style.stroke-dash: 3}
+
+classes.box.style.font-size: 18
+(** -> **)[*].style.stroke: "#908caa"
+(** -> **)[*].style.font-color: "#908caa"

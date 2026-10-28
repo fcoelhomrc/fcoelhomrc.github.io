@@ -1,0 +1,20 @@
+---
+// A rendered D2 diagram from public/, with its caption. Tall diagrams pass a
+// maxWidth so they do not take over the column.
+interface Props {
+  src: string;
+  alt: string;
+  caption?: string;
+  maxWidth?: string;
+}
+
+const { src, alt, caption, maxWidth } = Astro.props;
+const root = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/`;
+---
+
+<figure class="diagram">
+  <a href={`${root}${src}`} aria-label={`Open the full-size diagram: ${alt}`}>
+    <img src={`${root}${src}`} alt={alt} loading="lazy" style={maxWidth ? `max-width:${maxWidth}` : undefined} />
+  </a>
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>

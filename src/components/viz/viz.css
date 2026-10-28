@@ -1,0 +1,91 @@
+/* Chart chrome on the Rosé Pine site. Series colours are the validated dark
+   categorical slots; every piece of text uses the site's ink tokens. */
+.viz {
+  --viz-surface: var(--surface);
+  --viz-grid: #2e2b42;
+  --viz-axis: var(--border);
+  --viz-ink: var(--text);
+  --viz-ink-2: var(--subtle);
+  --viz-ink-3: var(--muted);
+  margin: 2.25rem 0;
+  padding: 1.1rem 1.1rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--viz-surface);
+}
+.viz-head { display: grid; gap: 0.15rem; margin-bottom: 0.8rem; }
+.viz-title { color: var(--viz-ink); font-weight: 600; font-size: 1rem; line-height: 1.35; }
+.viz-subtitle { color: var(--viz-ink-2); font-size: 0.88rem; line-height: 1.45; }
+
+.viz-views { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.7rem; }
+.viz-views button {
+  padding: 0.25rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--viz-ink-2);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.viz-views button:hover { background: var(--overlay); color: var(--viz-ink); }
+.viz-views button[aria-pressed="true"] { border-color: var(--viz-ink-2); background: var(--overlay); color: var(--viz-ink); font-weight: 600; }
+
+.viz-legend { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; margin: 0 0 0.5rem; padding: 0; list-style: none; color: var(--viz-ink-2); font-size: 0.8rem; }
+.viz-legend li { display: inline-flex; align-items: center; gap: 0.4rem; }
+.viz-key { display: inline-block; flex: none; background: var(--key); }
+.viz-key.rect { width: 0.7rem; height: 0.7rem; border-radius: 2px; }
+.viz-key.line { width: 1rem; height: 2px; border-radius: 1px; }
+.viz-key.dash { width: 1rem; height: 0; border-top: 2px dashed var(--key); background: none; }
+
+.viz-plot { position: relative; overflow-x: auto; }
+.viz-plot svg { display: block; width: 100%; min-width: 34rem; height: auto; overflow: visible; }
+.viz-plot text { fill: var(--viz-ink-3); font-family: "Inter", system-ui, sans-serif; font-size: 11px; font-variant-numeric: tabular-nums; }
+.viz-plot .viz-label { fill: var(--viz-ink-2); font-size: 11px; }
+.viz-plot .viz-axis-title { fill: var(--viz-ink-2); font-size: 11.5px; }
+.viz-plot .viz-grid { stroke: var(--viz-grid); stroke-width: 1; }
+.viz-plot .viz-baseline { stroke: var(--viz-axis); stroke-width: 1; }
+.viz-plot .viz-ref { stroke: var(--viz-ink-2); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.viz-plot .viz-whisker { stroke: var(--viz-ink-2); stroke-width: 1.2; }
+.viz-plot .viz-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.viz-plot .viz-dot { stroke: var(--viz-surface); stroke-width: 2; }
+.viz-plot .viz-cross { stroke: var(--viz-ink-3); stroke-width: 1; display: none; }
+.viz-plot [data-tip] { cursor: default; outline: none; transition: opacity 120ms; }
+.viz-plot [data-tip]:hover .viz-mark,
+.viz-plot [data-tip].is-hover .viz-mark,
+.viz-plot [data-tip]:focus-visible .viz-mark { filter: brightness(1.25); }
+.viz-plot [data-tip]:focus-visible .viz-hitbox { stroke: var(--viz-ink); stroke-width: 1; }
+.viz-plot .viz-hitbox { fill: transparent; }
+
+.viz-tip {
+  position: absolute;
+  z-index: 2;
+  display: none;
+  min-width: 9rem;
+  max-width: 17rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--base);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.35);
+  pointer-events: none;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+.viz-tip-title { margin-bottom: 0.25rem; color: var(--viz-ink-2); font-weight: 600; }
+.viz-tip-row { display: grid; grid-template-columns: 0.8rem auto 1fr; align-items: center; gap: 0.45rem; color: var(--viz-ink-2); }
+.viz-tip-row strong { color: var(--viz-ink); font-variant-numeric: tabular-nums; }
+.viz-tip-key { width: 0.8rem; height: 2px; border-radius: 1px; }
+
+.viz-table { margin-top: 0.6rem; font-size: 0.82rem; }
+.viz-table summary { color: var(--viz-ink-3); cursor: pointer; }
+.viz-table summary:hover { color: var(--viz-ink-2); }
+.viz-table > div { overflow-x: auto; }
+.viz-table table { width: 100%; margin-top: 0.5rem; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.viz-table th, .viz-table td { padding: 0.3rem 0.6rem; border-bottom: 1px solid var(--viz-grid); text-align: right; white-space: nowrap; }
+.viz-table th:first-child { text-align: left; }
+.viz-table thead th { color: var(--viz-ink-2); font-weight: 600; }
+.viz-table tbody th { color: var(--viz-ink-2); font-weight: 400; }
+.viz-table td { color: var(--viz-ink); }
+.viz-table-view { margin: 0.6rem 0 0; color: var(--viz-ink-2); font-weight: 600; }
+.viz-source { margin: 0.6rem 0 0; color: var(--viz-ink-3); font-size: 0.78rem; }

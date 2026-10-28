@@ -1,0 +1,39 @@
+# Render: d2 --sketch --layout elk --pad 30 branches.d2 branches.svg
+...@_style
+direction: down
+
+q: Question {class: box}
+
+retrieval: Retrieval under test {
+  class: group
+  bm25: BM25 {class: box}
+  dense: Dense encoder {class: model}
+  rrf: Reciprocal rank fusion {class: box}
+  rerank: Cross-encoder rerank, optional {class: model}
+  bm25 -> rrf
+  dense -> rrf
+  rrf -> rerank
+}
+
+free: Free branch, every change {
+  class: group
+  gold: Retrieved vs gold\nchunk ids {class: human}
+  metrics: Recall, precision, MRR\nnDCG, MAP, 95% CI {class: result}
+  gold -> metrics
+}
+
+paid: Paid branch, on demand {
+  class: group
+  answer: Answer\nQwen3 30B {class: model}
+  judge: Judge\nDeepSeek V4 Flash {class: model}
+  scores: Faithfulness, relevancy\ncontext precision, recall {class: result}
+  answer -> judge -> scores
+}
+
+q -> retrieval.bm25
+q -> retrieval.dense
+retrieval.rerank -> free.gold: top-k ids
+retrieval.rerank -> paid.answer: top-k chunks
+
+(** -> **)[*].style.stroke: "#908caa"
+(** -> **)[*].style.font-color: "#908caa"

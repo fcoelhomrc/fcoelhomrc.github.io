@@ -1,0 +1,182 @@
+---
+title: Scoring retrieval without calling a model
+description: Part 2 of 3. With gold chunk ids, retrieval metrics cost nothing. BM25 beat every dense encoder on its own, one encoder fused with it beat BM25, and the reranker and every query rewrite made things worse.
+published: 2026-10-28
+tags:
+  - rag
+  - evaluation
+  - retrieval
+draft: true
+---
+
+import SeriesNav from "../../components/SeriesNav.astro";
+import Diagram from "../../components/viz/Diagram.astro";
+import BarChart from "../../components/viz/BarChart.astro";
+import LineChart from "../../components/viz/LineChart.astro";
+import ForestPlot from "../../components/viz/ForestPlot.astro";
+import { SLOTS, MODE_COLORS, ARM_COLORS } from "../../components/viz/palette";
+import { series, figures, ENCODERS, ENCODER_LABEL, soloRetrievers, fused, pairedFusion, bestRerank } from "../../data/rag-eval";
+
+export const depthViews = ENCODERS.map((e) => ({
+  label: ENCODER_LABEL[e],
+  series: Object.entries(figures.depth[e].recall).map(([name, values]) => ({ name, values })),
+}));
+export const encoderView = (metric, label) => ({
+  label,
+  groups: ENCODERS.map((e, i) => ({
+    label: ENCODER_LABEL[e],
+    bars: [
+      { name: "Dense", value: soloRetrievers[metric][i] },
+      { name: "Hybrid (dense + BM25)", value: fused[e][metric] },
+    ],
+  })),
+});
+export const pairedRows = pairedFusion.map((p) => ({
+  label: ENCODER_LABEL[p.encoder],
+  points: [
+    { name: "Top 10", value: p.k10[0], lo: p.k10[0] - p.k10[1], hi: p.k10[0] + p.k10[1] },
+    { name: "Top 50", value: p.k50[0], lo: p.k50[0] - p.k50[1], hi: p.k50[0] + p.k50[1] },
+  ],
+}));
+export const rerankViews = ENCODERS.map((e) => ({
+  label: ENCODER_LABEL[e],
+  groups: figures.rerank[e].map((r) => ({
+    label: `Top ${r.k}`,
+    bars: [
+      { name: "No reranker", ...r.off },
+      { name: "Cross-encoder", ...r.on },
+    ],
+  })),
+}));
+export const armView = (label, rows) => ({
+  label,
+  groups: rows.map((r) => ({ label: `Top ${r.k}`, bars: r.values.map((v) => ({ name: v.arm, value: v.value, lo: v.lo, hi: v.hi })) })),
+});
+
+<SeriesNav title={series.title} parts={series.parts} current="rag-eval-retrieval" />
+
+On this corpus, BM25 beat every dense encoder used on its own. Fusing BM25 with Arctic Embed M v2 beat BM25 alone, by +0.055 nDCG@10 (95% CI +0.012 to +0.098). The cross-encoder reranker and every query rewrite I tried made retrieval worse. All of it came from scoring retrieved chunk ids against gold ones, with no model calls.
+
+The numbers come from [papers-please](https://github.com/fcoelhomrc/papers-please) at commit `361ff06` (12 Sep 2026), mostly issues [#45](https://github.com/fcoelhomrc/papers-please/issues/45), [#48](https://github.com/fcoelhomrc/papers-please/issues/48) and [#49](https://github.com/fcoelhomrc/papers-please/issues/49). Every chart has its data under "Show the data".
+
+## Two branches, one free
+
+[Part 1](../rag-eval-test-set/) tied each of the 100 questions to the chunk ids it was written from. Retrieval quality is then set arithmetic: which gold ids came back, and how high. That branch costs nothing, so it runs on every change.
+
+The other branch generates an answer and asks an LLM judge to grade it. It costs money and needs its own validation, so it runs on demand. Part 3 covers it.
+
+<Diagram src="blog/rag-eval/branches.svg" alt="A question goes through BM25 and a dense encoder, reciprocal rank fusion and an optional reranker. The top-k ids go to the free branch, which compares them with gold ids; the top-k chunks go to the paid branch, where Qwen3 30B answers and DeepSeek V4 Flash judges." caption="The free branch needs only ids. The paid branch needs an answer and a judge." maxWidth="30rem" />
+
+| Metric | What it asks |
+|---|---|
+| Recall@k | What share of the gold chunks is in the top k? |
+| Precision@k | What share of the top k is gold? Capped at min(gold, k)/k, so it looks low at large k by construction |
+| Hit rate | Is at least one gold chunk in the top k? |
+| MRR | How high is the first gold chunk? |
+| nDCG@k | Are the gold chunks near the top, with credit falling off by rank? |
+| MAP@k | Average precision at each gold chunk's rank |
+
+## Confidence intervals cost nothing
+
+Each metric is a mean over 100 per-question scores, and their spread gives the interval directly: the standard error is s/√n. No repeated runs and no extra calls. To compare two configurations, I take the per-question difference on the same 100 questions, which gives a tighter interval than comparing two separate ones.
+
+The intervals are wide. With 100 questions, a paired test has about an 18% chance of detecting a real 5-point difference in recall and about 64% for a 10-point difference. So I treat any gap under 5 points as a tie unless the paired interval clears zero. (Power figures from the project's evaluation notes, `docs/rag-evaluation.md`.)
+
+## Five retrievers, six depths
+
+The modes under test: dense vectors alone, two keyword rankers, and each keyword ranker fused with dense through reciprocal rank fusion (RRF). The two keyword rankers differ in a way that matters. Postgres `ts_rank` in its two-argument form has no inverse document frequency and no length normalisation; BM25 has both.
+
+<LineChart
+  title="Recall at k, by retrieval mode"
+  subtitle="Share of gold chunks in the top k, mean of 100 questions. Pick a dense encoder; the two keyword lines do not change."
+  x={figures.depth["arctic-m-v2"].k}
+  xLabel="k"
+  yLabel="Recall"
+  yDomain={[0.3, 1]}
+  yStep={0.1}
+  logX
+  colors={MODE_COLORS}
+  views={[depthViews[2], depthViews[0], depthViews[1], depthViews[3]]}
+  source="Read from assets/eval/svg/light/<encoder>/retrieval-depth.svg in papers-please."
+/>
+
+With Arctic, fusing dense and BM25 gives the highest recall at every depth. With the other three encoders, fusion sits close to BM25 alone.
+
+Fusion needed one fix first. The keyword side was weighted 0.1, a value fitted on an older 12-paper corpus where dense was stronger. At that weight a rank-1 keyword hit scored 0.1/61 = 0.0016 while a rank-40 dense hit scored 1/100 = 0.0100, so a keyword hit could never outrank a dense one ([#47](https://github.com/fcoelhomrc/papers-please/issues/47)). A sweep over the weight put 1.0 first for every encoder, and all the fused numbers here use it.
+
+## The encoder family mattered more than its size
+
+<BarChart
+  title="nDCG at 10, dense alone and fused with BM25"
+  subtitle="The dashed line is BM25 alone (0.705). Mean of 100 questions, reranker off."
+  yLabel="nDCG@10"
+  yDomain={[0, 1]}
+  yStep={0.2}
+  groupLabel="Dense encoder"
+  colors={MODE_COLORS}
+  reference={{ value: 0.705, label: "BM25 alone" }}
+  views={[encoderView("ndcg", "nDCG@10"), encoderView("recall", "Recall@10"), encoderView("mrr", "MRR")]}
+  source="Issues #48 (dense alone) and #49 (fused) in papers-please."
+/>
+
+Going from bge-small to bge-large bought +0.019 nDCG. Switching from bge-small to Arctic bought +0.097. Every encoder on its own stays under BM25. Fused, only Arctic clears it by more than the noise:
+
+<ForestPlot
+  title="Does fusing with BM25 beat BM25 alone?"
+  subtitle="Paired nDCG difference, fused minus BM25, on the same 100 questions, with 95% intervals. An interval crossing zero is a tie."
+  xLabel="Difference in nDCG"
+  xDomain={[-0.08, 0.12]}
+  xStep={0.04}
+  rowLabel="Dense encoder"
+  colors={{ "Top 10": SLOTS[0], "Top 50": SLOTS[1] }}
+  rows={pairedRows}
+  source="Issue #49 in papers-please."
+/>
+
+The Qwen3 encoder has an odd profile worth a look. On its own it has the second-best recall (0.767) but the worst R-precision (0.380): it finds the right chunk and ranks it low.
+
+## The reranker never helped
+
+A cross-encoder reranker (`ms-marco-MiniLM-L-6-v2`) reads the question and each candidate together and re-scores them. Across the whole grid, the best configuration without it beat the best configuration with it for every encoder, by 0.048 to 0.094 nDCG.
+
+At matched output size the picture depends on the encoder. With Arctic the reranker costs 0.05 to 0.10 nDCG. With the bge models the drop is 0.02 to 0.04, inside the intervals, and with Qwen3 it ties at k=1. It never helped.
+
+<BarChart
+  title="nDCG with and without the cross-encoder reranker"
+  subtitle="Dense fused with ts_rank, same number of chunks returned either way, with 95% intervals."
+  yLabel="nDCG"
+  yDomain={[0, 1]}
+  yStep={0.2}
+  groupLabel="Chunks returned"
+  colors={{ "No reranker": SLOTS[0], "Cross-encoder": SLOTS[1] }}
+  views={[rerankViews[2], rerankViews[0], rerankViews[1], rerankViews[3]]}
+  source="Read from assets/eval/svg/light/<encoder>/rerank-matched.svg in papers-please."
+/>
+
+I have not tested why. The model was trained on MS MARCO web search queries, and paper text full of tables and formulas is far from that, but that is a guess.
+
+## Every query rewrite lost ground
+
+I tried four ways of rewriting the question before retrieval: splitting it into sub-questions, generating paraphrases (multi-query), each of those with the original added back, and HyDE, which embeds a generated hypothetical answer. The rewrites were generated once and cached, so this sweep also cost nothing to re-run.
+
+<BarChart
+  title="nDCG by query rewrite"
+  subtitle="Arctic for dense retrieval. HyDE only applies to dense, so it is missing for BM25. 95% intervals."
+  yLabel="nDCG"
+  yDomain={[0, 0.8]}
+  yStep={0.2}
+  groupLabel="Chunks returned"
+  colors={ARM_COLORS}
+  views={[armView("Dense (Arctic)", figures.arms["arctic-m-v2"].Dense), armView("BM25", figures.arms["arctic-m-v2"].BM25)]}
+  source="Read from assets/eval/svg/light/arctic-m-v2/query-arms.svg in papers-please."
+/>
+
+The original question ranks first at every depth, for every encoder and for BM25. Adding the original back to a rewrite recovers part of the loss. Paraphrasing loses the most, and with Arctic HyDE does even worse. My reading: these questions already use the paper's own words, so a rewrite can only move away from them.
+
+## What I would carry over to another corpus
+
+The best measured configuration is Arctic fused with BM25, no reranker, no rewrite: nDCG 0.760 at 10 and 0.780 at 50. Measured end to end, that fused query took about 2.1 seconds against 0.7 for dense alone. The app's `config.yaml` still names bge-large as of `361ff06`, so this is a result, not yet the default.
+
+One caveat outweighs the rest. The questions were written from the chunks, so they share the chunks' vocabulary, and that favours BM25. Real user questions are phrased in the user's words. Checking whether BM25 still wins needs naturally phrased questions, which this set does not have.
+
+Part 3 turns to the paid branch: how much to trust an LLM judge, and how I checked it.

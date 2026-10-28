@@ -1,0 +1,74 @@
+---
+// Multi-series line chart drawn at build time, with a crosshair that reads
+// every series at the nearest x. Several views share the axes; buttons swap them.
+import Frame from "./Frame.astro";
+import { fmt } from "./palette";
+
+interface Series { name: string; values: number[] }
+interface Props {
+  title: string;
+  subtitle?: string;
+  x: number[];
+  xLabel: string;
+  yLabel: string;
+  yDomain: [number, number];
+  yStep: number;
+  logX?: boolean;
+  views: { label: string; series: Series[] }[];
+  colors: Record<string, string>;
+  digits?: number;
+  source?: string;
+}
+
+const { title, subtitle, x, xLabel, yLabel, yDomain, yStep, logX = false, views, colors, digits = 3, source } = Astro.props;
+
+const W = 640, H = 300, L = 48, R = 18, T = 12, B = 42;
+const tx = (v: number) => (logX ? Math.log10(v) : v);
+const [x0, x1] = [tx(x[0]), tx(x[x.length - 1])];
+const sx = (v: number) => L + ((tx(v) - x0) / (x1 - x0)) * (W - L - R);
+const sy = (v: number) => T + (1 - (v - yDomain[0]) / (yDomain[1] - yDomain[0])) * (H - T - B);
+const yTicks: number[] = [];
+for (let v = yDomain[0]; v <= yDomain[1] + 1e-9; v += yStep) yTicks.push(Math.round(v * 1000) / 1000);
+const xs = x.map(sx);
+
+const names = views[0].series.map((s) => s.name);
+const legend = names.map((n) => ({ name: n, color: colors[n], kind: "line" as const }));
+const cross = {
+  xs,
+  labels: x.map((v) => `${xLabel} = ${v}`),
+  views: views.map((view) => ({
+    series: view.series.map((s) => ({ name: s.name, color: colors[s.name], values: s.values.map((v) => fmt(v, digits)), ys: s.values.map(sy) })),
+  })),
+};
+const tables = views.map((view) => ({
+  columns: [xLabel, ...view.series.map((s) => s.name)],
+  rows: x.map((v, i) => [v, ...view.series.map((s) => fmt(s.values[i], digits))]),
+}));
+---
+
+<Frame title={title} subtitle={subtitle} views={views.map((v) => v.label)} legend={legend} tables={tables} source={source}>
+  <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={title} data-cross={JSON.stringify(cross)}>
+    {yTicks.map((v) => (
+      <g>
+        <line class={v === yDomain[0] ? "viz-baseline" : "viz-grid"} x1={L} x2={W - R} y1={sy(v)} y2={sy(v)} />
+        <text x={L - 8} y={sy(v) + 3.5} text-anchor="end">{v.toFixed(yStep >= 1 ? 0 : yStep < 0.1 ? 2 : 1)}</text>
+      </g>
+    ))}
+    {x.map((v) => <text x={sx(v)} y={H - B + 16} text-anchor="middle">{v}</text>)}
+    <text class="viz-axis-title" x={(L + W - R) / 2} y={H - 6} text-anchor="middle">{xLabel}</text>
+    <text class="viz-axis-title" transform={`translate(12 ${(T + H - B) / 2}) rotate(-90)`} text-anchor="middle">{yLabel}</text>
+    {views.map((view, vi) => (
+      <g data-view-panel={String(vi)} style={vi === 0 ? "" : "display:none"}>
+        {view.series.map((s) => (
+          <g>
+            <path class="viz-line" stroke={colors[s.name]} d={s.values.map((v, i) => `${i ? "L" : "M"}${sx(x[i]).toFixed(1)} ${sy(v).toFixed(1)}`).join(" ")} />
+            <circle class="viz-dot" cx={sx(x[x.length - 1])} cy={sy(s.values[s.values.length - 1])} r="4" fill={colors[s.name]} />
+          </g>
+        ))}
+      </g>
+    ))}
+    <line class="viz-cross" y1={T} y2={H - B} />
+    <g class="viz-cross-dots"></g>
+    <rect class="viz-hit" x={L} y={T} width={W - L - R} height={H - T - B} fill="transparent" />
+  </svg>
+</Frame>

@@ -1,6 +1,6 @@
 ---
 title: Building a test set from your own papers
-description: Part 1 of 3. I built 100 questions over 100 ML papers, each tied to the chunks it came from, so retrieval can be scored without a model.
+description: Part 1 of 3. A step-by-step guide to generating retrieval test questions from your own documents with Ragas, where every question knows which chunks answer it.
 published: 2026-10-28
 tags:
   - rag
@@ -30,53 +30,75 @@ export const skewView = (label, v) => ({
 
 <SeriesNav title={series.title} parts={series.parts} current="rag-eval-test-set" />
 
-I built 100 test questions over 100 machine learning papers, and each question records the ids of the chunks it was written from. Scoring retrieval then needs no model: compare the retrieved ids with the gold ids. Parts 2 and 3 use this set.
+This guide builds a test set of 100 questions for a search system over research papers. Each question comes with the ids of the text chunks that answer it. With those ids, you can score any retrieval setup in seconds, with no model calls.
 
-The code is in the [Scientific Paper Semantic Search repository](https://github.com/fcoelhomrc/papers-please), checked at commit `361ff06` (12 Sep 2026).
+Parts 2 and 3 use this set to compare retrievers and to check an LLM judge. All code is in the [Scientific Paper Semantic Search repository](https://github.com/fcoelhomrc/papers-please).
 
-## The system
+## What we are testing
 
-Scientific Paper Semantic Search downloads papers, splits them into 256-token chunks and searches them with BM25 and dense vectors. A chat agent answers questions from the search results.
+RAG (retrieval-augmented generation) answers a question in two stages. First a retriever finds the passages most likely to hold the answer. Then a language model writes an answer from those passages.
 
-<Diagram src="blog/rag-eval/system.svg" alt="Ingest workers fetch arXiv PDFs, run OCR and embed chunks into Postgres and Pinecone. The query path sends questions from the web app to a LangGraph agent, which searches both stores and sends traces to Phoenix." />
+Before retrieval, each paper is split into chunks of 256 tokens, roughly 200 words. The retriever ranks chunks, not whole papers. If the right chunk is missing from its top results, the language model cannot answer well, so retrieval is the first thing to measure.
 
-## Five neighbouring topics make retrieval hard
+<Diagram src="blog/rag-eval/system.svg" alt="Ingest workers fetch arXiv PDFs, run OCR and embed chunks into Postgres and Pinecone. The query path sends questions from the web app to a LangGraph agent, which searches both stores and sends traces to Phoenix." caption="The system under test. The top half prepares the chunks; the bottom half answers questions." />
 
-The corpus is five topics of 20 papers each, chosen to share vocabulary: retrieval and RAG, agents, LLM evaluation, efficient inference, and alignment. Papers from unrelated fields would be told apart by keyword overlap alone.
+## Step 1: Decide what a test case looks like
 
-I picked the 100 papers by hand from 213 candidates. The corpus has 11,381 chunks, about 114 per question ([#47](https://github.com/fcoelhomrc/papers-please/issues/47)).
+A test case is a question plus the ids of the chunks that answer it. Here is one from the final set:
 
-All papers come from arXiv. Semantic Scholar's PDF links often go through doi.org, which returns 403 to a script. Building the link from the arXiv id downloaded all 100 papers ([#41](https://github.com/fcoelhomrc/papers-please/issues/41), [#43](https://github.com/fcoelhomrc/papers-please/issues/43)).
+```json
+{
+  "question": "How is the WebArena environment delivered and reset?",
+  "reference": "The WebArena environment is delivered as dockers, and scripts are provided to reset the environment to a deterministic initial state.",
+  "reference_chunk_ids": [12543]
+}
+```
 
-## Ragas wrote the questions from a graph of the chunks
+To score a retriever on this question, run it and check where chunk 12543 lands in its ranking. That comparison is exact and free. Part 2 turns it into metrics.
 
-[Ragas](https://docs.ragas.io) builds a knowledge graph and writes questions by walking it. An LLM extracts a summary, themes and entities from each chunk. Edges link chunks with similar summaries or shared entities.
+The `reference` field is a gold answer. Retrieval scoring ignores it, but the LLM judge in part 3 uses it.
 
-<Diagram src="blog/rag-eval/testset.svg" alt="The corpus feeds a sample of 80 seed chunks per topic into one knowledge graph per topic. Three Ragas question types write 155 questions. Each gold passage is looked up to get its chunk id, then review keeps 100." />
+## Step 2: Build a corpus where retrieval is hard
 
-Ragas gets the chunks themselves, one document each, with an explicit list of transforms and no splitter. Its default transforms re-split documents over 500 tokens, and a re-split node no longer matches a chunk.
+Retrieval is easy when every paper is about something different. Keyword overlap alone then finds the right paper, every setup scores near perfect, and the test tells you nothing.
 
-Every gold passage Ragas returns is therefore byte-identical to a row in the chunks table. A dictionary lookup gives its chunk id, and all 155 questions resolved. Questions come from 80 seed chunks per topic, while all 11,381 chunks stay in the index as distractors.
+So the corpus has five topics that share vocabulary: retrieval and RAG, agents, LLM evaluation, efficient inference, and alignment. Each topic has 20 papers, picked by hand from 213 candidates. Papers on the same topic act as distractors for each other.
 
-GLM 5.3 Flash wrote the questions. The first run cost $0.354 in model calls, $0.28 of it for the graph; I did not record the cost of the second.
+The result is 100 papers and 11,381 chunks, about 114 chunks for every question. All papers come from arXiv, because other PDF hosts often refuse scripted downloads.
 
-## Five failures surfaced only by running it
+## Step 3: Generate questions with Ragas
 
-None of the five stopped the run at the point of failure ([#44](https://github.com/fcoelhomrc/papers-please/issues/44)).
+Writing 100 good questions by hand takes days. [Ragas](https://docs.ragas.io) generates them from your own documents in three steps.
 
-| Problem | Effect | Fix |
+1. An LLM reads each chunk and extracts a summary, its themes and the named entities it mentions.
+2. Ragas links chunks into a knowledge graph. Two chunks get an edge when their summaries are similar or they mention the same entity.
+3. Question writers walk the graph. Each picks one chunk, or a few linked chunks, and writes a question and a gold answer from them.
+
+There are three kinds of question writer. Real examples from the set:
+
+| Question type | Built from | Example |
 |---|---|---|
-| Papers quote the end-of-text token | tiktoken raised inside every extractor call | Encode special tokens as plain text |
-| Similarity threshold 0.5 | 94.7% of 79,401 chunk pairs got an edge, and cluster search hung for 13 minutes | Pick the threshold per topic for about 120 edges |
-| 1 of 1,197 entity calls hit its token limit | The relationship builder raised and left zero entity edges, so no multi-hop specific questions | Drop incomplete nodes before building edges |
-| GLM 5.3 Flash reasons by default | It spent all 8,192 output tokens reasoning and returned nothing | Set reasoning effort to low |
-| Multi-hop passages start with `<1-hop>` | 8 of 11 missed the exact lookup on a trial | A counter of unmapped passages caught it |
+| Single-hop | One chunk | "What is the overall score of ToolAlpaca-13B on simulated tools?" |
+| Multi-hop specific | Chunks that share an entity | "How does WebArena curate intents and emulate websites for its environment?" |
+| Multi-hop abstract | Chunks with a shared theme | "How does FLARE address contextual relevance failure points in RAG retrieval?" |
 
-Ragas also skips a question type without an error when the graph has no clusters for it. The generator now checks cluster counts before it writes anything.
+<Diagram src="blog/rag-eval/testset.svg" alt="The corpus feeds a sample of 80 seed chunks per topic into one knowledge graph per topic. Three Ragas question types write 155 questions. Each gold passage is looked up to get its chunk id, then review keeps 100." caption="The full pipeline, from corpus to the final 100 questions." />
 
-## Balanced seeds gave unbalanced questions
+Questions are written from a sample of 80 chunks per topic, called the seed pool. The search index still holds all 11,381 chunks, so each question has thousands of possible wrong answers. GLM 5.3 Flash wrote the questions, and the first run cost $0.354 in model calls.
 
-The first set drew 80 seed chunks from each topic, yet after review 58 of its 100 questions were about agents and 8 about alignment. Ragas picks seeds by their place in the graph, and the agents papers dominated it ([0e8490c](https://github.com/fcoelhomrc/papers-please/commit/0e8490c)).
+## Step 4: Keep the link from question to chunk
+
+Ragas returns each question with the passages it was written from, as text. To get chunk ids, the text has to match a chunk exactly.
+
+By default Ragas re-splits long documents before building the graph, so its passages stop matching your chunks. The fix is to give Ragas your chunks, one document each, and pass an explicit list of steps with no splitter.
+
+After that, every passage Ragas returns is identical to one chunk in the database. A dictionary from chunk text to chunk id gives the gold ids. All 155 generated questions resolved, with one to three gold chunks each.
+
+## Step 5: Check the balance
+
+Generated questions can pile up on one topic even when the seed pool is balanced. Count them before you use them.
+
+The first set drew exactly 80 seed chunks from every topic. After review, 58 of its 100 questions were about agents and only 8 about alignment. Ragas favours chunks with many links in the graph, and the agents papers had the most.
 
 <BarChart
   title="The first set was mostly about agents"
@@ -88,14 +110,15 @@ The first set drew 80 seed chunks from each topic, yet after review 58 of its 10
   groupLabel="Topic"
   colors={skewColors}
   views={[skewView("First set", topicSkew.v1), skewView("Second set, generated per topic", topicSkew.v2)]}
-  source="eval/testset/v1/ and eval/testset/ in the project repository."
 />
 
-Review kept 62% to 87% of each topic, so the skew came from generation. Generating each topic on its own, 31 questions per topic, fixed it ([aa30c9e](https://github.com/fcoelhomrc/papers-please/commit/aa30c9e)).
+With that skew, an overall score would mostly measure one topic. The fix was to run generation once per topic, 31 questions each, and keep exactly 20 per topic.
 
-## Review cut 155 questions to 100
+## Step 6: Review every question
 
-A review pass dropped 34 questions, and a quota of 20 per topic cut 21 more ([6513c33](https://github.com/fcoelhomrc/papers-please/commit/6513c33)). Claude Opus scored each question from 0 to 100 in a separate call, and the quota kept the highest scores. Any verdict can be overridden by hand on the same review page.
+Generated questions need a review before use. I had Claude Opus score each of the 155 questions from 0 to 100 for usefulness, one question per call, with a reason and flags.
+
+The review dropped 34 questions. A quota of 20 per topic, filled by score, then cut 21 more, leaving 100. Every verdict appears on a review page where I can override it by hand.
 
 <BarChart
   title="OCR artifacts were the most common reason to drop a question"
@@ -106,14 +129,16 @@ A review pass dropped 34 questions, and a quota of 20 per topic cut 21 more ([65
   digits={0}
   colors={{ Questions: SLOTS[0] }}
   views={[{ label: "Flags", groups: dropFlags.map((f) => ({ label: f.label, bars: [{ name: "Questions", value: f.n }] })) }]}
-  source="eval/testset/judged.jsonl in the project repository, last verdict per question."
 />
 
-A question that names its own answer, such as one asking which MiniLM variant a paper used, is found by BM25 on that name alone. Every configuration then scores the same on it. Multi-hop abstract questions often ask about "these approaches" without saying which.
+Two flags matter in any generated set:
 
-Review edited 18 of the kept questions, several to fix wrong gold answers from Ragas. An edited question needs its gold answer edited too, or every metric grades against a stale answer.
+- Names its own answer. A question like "What MiniLM variant does X use?" contains the answer's key word. Keyword search finds it every time, so the question cannot tell two retrievers apart.
+- Floating "these". Multi-hop abstract questions often ask about "these approaches" without naming them. No real user asks that.
 
-The review prompt caused one wrong result of its own. It dropped 80% of questions seeded from tables as OCR artifacts, because Docling writes a table as `row, column = value` triplets. A paragraph in the prompt describing that format raised the keep rate for table questions from 20% to 82%.
+The review also edited 18 of the kept questions, several to fix wrong gold answers. When you edit a question, edit its gold answer too, or the judge in part 3 grades against a stale one.
+
+Check the review prompt itself as well. Docling stores tables as `row, column = value` lines, and the first prompt flagged 80% of table questions as OCR garbage. After one paragraph explaining that format, the keep rate for table questions went from 20% to 82%.
 
 <BarChart
   title="Multi-hop specific questions were cut hardest"
@@ -125,21 +150,27 @@ The review prompt caused one wrong result of its own. It dropped 80% of question
   groupLabel="Question type"
   colors={{ Generated: SLOTS[1], Kept: SLOTS[2] }}
   views={[{ label: "Mix", groups: synthMix.map((s) => ({ label: s.label, bars: [{ name: "Generated", value: s.generated }, { name: "Kept", value: s.kept }] })) }]}
-  source="eval/testset/generated.jsonl and curated.jsonl in the project repository."
 />
 
-Of the kept questions, 46 have one gold chunk, 45 have two and 9 have three.
+## Watch for silent failures
 
-## Limits
+Ragas often fails without raising an error, and you get a test set that looks fine. These five came up here:
 
-- The questions are synthetic and reuse the words of their chunks, which favours BM25. Part 2 shows the effect.
-- Each question's gold chunks are the passages it came from. Another chunk may answer it as well, so label-based scores are a lower bound.
-- One model reviewed the questions, and no second reviewer checked its verdicts.
+| What happened | What you see | Fix |
+|---|---|---|
+| Papers quote the end-of-text token | Every extractor call on those chunks fails | Treat special tokens as plain text |
+| Similarity threshold too low (0.5) | 94.7% of chunk pairs get an edge and question writing hangs | Choose the threshold per topic, aiming at about 120 edges |
+| One entity extraction fails | No multi-hop specific questions at all | Drop incomplete chunks before linking |
+| The generator model reasons by default | Empty answers once reasoning uses all 8,192 output tokens | Set reasoning effort to low |
+| Multi-hop passages carry a `<1-hop>` prefix | Their gold ids are missing | Count unmatched passages after every run |
 
-## Sources
+Ragas also drops a question type silently when the graph has no links for it. Check how many questions of each type came out before using the set.
 
-Opened by Claude Code on 28 Oct 2026, while drafting this post with me.
+## What this set cannot tell you
 
-- Scientific Paper Semantic Search repository at [`361ff06`](https://github.com/fcoelhomrc/papers-please/tree/361ff06) (12 Sep 2026): issues [#41](https://github.com/fcoelhomrc/papers-please/issues/41), [#43](https://github.com/fcoelhomrc/papers-please/issues/43), [#44](https://github.com/fcoelhomrc/papers-please/issues/44), [#47](https://github.com/fcoelhomrc/papers-please/issues/47).
-- Commits [0e8490c](https://github.com/fcoelhomrc/papers-please/commit/0e8490c) (first set archived), [aa30c9e](https://github.com/fcoelhomrc/papers-please/commit/aa30c9e) (per-topic generation) and [6513c33](https://github.com/fcoelhomrc/papers-please/commit/6513c33) (review).
-- Question files under [`services/backend/eval/testset/`](https://github.com/fcoelhomrc/papers-please/tree/361ff06/services/backend/eval/testset), counted directly.
+- The questions reuse the words of the chunks they came from. That favours keyword search, as part 2 shows.
+- A different chunk may answer a question just as well as its gold chunk. Scores based on gold ids are therefore a lower bound.
+- One model reviewed the questions, and no second reviewer checked it.
+
+[Part 2](../rag-eval-retrieval/) uses these 100 questions to score five retrievers without a single model call.
+

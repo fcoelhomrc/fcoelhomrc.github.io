@@ -1,6 +1,6 @@
 ---
 title: Scoring retrieval without calling a model
-description: Part 2 of 3. BM25 beat every dense encoder on its own. Only Arctic fused with BM25 beat BM25 alone, and the reranker and query rewrites never helped.
+description: Part 2 of 3. How to score retrievers with gold chunk ids, read the results with confidence intervals, and what a comparison of five retrievers found.
 published: 2026-10-28
 tags:
   - rag
@@ -55,38 +55,93 @@ export const armView = (label, rows) => ({
 
 <SeriesNav title={series.title} parts={series.parts} current="rag-eval-retrieval" />
 
-On this corpus BM25 beat every dense encoder used on its own. Only Arctic Embed M v2, fused with BM25, beat BM25 alone: +0.055 nDCG@10 (95% CI +0.012 to +0.098). The cross-encoder reranker and all four query rewrites never helped.
+This guide scores retrievers using the 100 questions from [part 1](../rag-eval-test-set/), each tagged with the ids of the chunks that answer it. It explains the metrics with a worked example, adds confidence intervals, and then compares five retrievers, a reranker and four ways of rewriting the question.
 
-Every number here compares retrieved chunk ids with the gold ids from [part 1](../rag-eval-test-set/), so none of it needed a model call. The data is from the [Scientific Paper Semantic Search repository](https://github.com/fcoelhomrc/papers-please) at commit `361ff06` (12 Sep 2026).
+The short version: plain keyword search (BM25) beat every embedding model on its own. Combining BM25 with the best embedding model beat BM25 alone. The reranker and the question rewrites never helped.
 
-## Two scoring branches
+## The retrievers we compare
 
-Comparing ids costs nothing, so it runs after every change. Grading an answer with an LLM judge costs money, so it runs on demand; part 3 covers it.
+A retriever takes a question and returns a ranked list of chunks. We test these approaches:
 
-<Diagram src="blog/rag-eval/branches.svg" alt="A question goes to BM25 and to a dense encoder. RRF fuses the two rankings and an optional cross-encoder reranks them. The free branch compares the top-k ids with gold ids. The paid branch has Qwen3 30B answer from the top-k chunks and DeepSeek V4 Flash grade the answer." maxWidth="30rem" />
-
-| Metric | Question it answers |
+| Method | How it ranks chunks |
 |---|---|
-| Recall@k | What share of the gold chunks is in the top k? |
-| Precision@k | What share of the top k is gold? It cannot exceed min(gold, k)/k |
-| Hit rate | Is any gold chunk in the top k? |
-| MRR | How high is the first gold chunk? |
-| nDCG@k | How near the top are the gold chunks, with credit falling by rank? |
-| MAP@k | What is the mean precision at each gold chunk's rank? |
+| BM25 | Counts the question's words in each chunk, giving rare words more weight and adjusting for chunk length |
+| Postgres `ts_rank` | Also counts matching words, but without the rare-word weighting or length adjustment |
+| Dense | An embedding model turns question and chunk into vectors; chunks whose vectors are closest rank first |
+| Hybrid | Runs a keyword ranker and a dense ranker, then merges the two lists |
 
-## Confidence intervals need no extra calls
+We test four embedding models for the dense side: bge-small, bge-large, Arctic Embed M v2 and Qwen3 Embedding 0.6B.
 
-Each metric is a mean of 100 per-question scores, so the standard error is s/√n from their spread. To compare two setups, I take the difference per question, which gives a tighter interval.
+The hybrid merges lists with reciprocal rank fusion (RRF). Each chunk scores 1 / (60 + rank) in every list it appears in, and the scores add up. A chunk ranked high in both lists wins, even if neither ranker put it first.
 
-With 100 questions, a paired test detects a real 5-point recall gap only about 18% of the time. I treat gaps under 5 points as ties unless the paired interval excludes zero (`docs/rag-evaluation.md`, section 8).
+## Step 1: Score one question
 
-## Fusing Arctic with BM25 gives the highest recall
+A metric compares the retriever's ranking with the gold chunk ids. Take a question with two gold chunks, A and B, and a retriever whose top 5 is C, A, D, E, F.
 
-Fused with BM25, Arctic has the highest recall at every depth. With the other three encoders, the fused line sits near BM25 alone.
+| Metric | Question it answers | This example |
+|---|---|---|
+| Recall@5 | What share of the gold chunks is in the top 5? | 1 of 2 = 0.5 |
+| Precision@5 | What share of the top 5 is gold? | 1 of 5 = 0.2 |
+| Hit rate | Is any gold chunk in the top 5? | Yes = 1 |
+| MRR | One over the rank of the first gold chunk | 1/2 = 0.5 |
+| nDCG@5 | How near the top are the gold chunks, compared with a perfect ranking? | 0.39 |
+
+nDCG gives each gold chunk a credit of 1 / log₂(rank + 1), so rank 1 earns 1 and rank 2 earns 0.63. A perfect ranking here puts A and B first and earns 1.63. The example earns 0.63, and 0.63 / 1.63 = 0.39.
+
+Every metric is a mean over all 100 questions. None of this calls a model, so a full sweep runs in minutes and costs nothing.
+
+<Diagram src="blog/rag-eval/branches.svg" alt="A question goes to BM25 and to a dense encoder. RRF fuses the two rankings and an optional cross-encoder reranks them. The free branch compares the top-k ids with gold ids. The paid branch has Qwen3 30B answer from the top-k chunks and DeepSeek V4 Flash grade the answer." caption="This post covers the free branch on the left. Part 3 covers the paid branch, where an LLM grades answers." maxWidth="30rem" />
+
+## Step 2: Add confidence intervals
+
+A mean over 100 questions is noisy. The 100 scores you already have give the error bar directly: the standard error is their standard deviation divided by √100. No extra runs are needed.
+
+To compare two setups, take the difference on each question and average those 100 differences. That gives a narrower interval than comparing two separate means, because hard questions are hard for both setups.
+
+At this size the intervals are wide. A real 5-point gap in recall gets detected only about 18% of the time. Treat any gap under 5 points as a tie unless its interval excludes zero.
+
+## Result 1: BM25 beats every embedding model on its own
+
+On its own, every embedding model scored below BM25 (0.705 nDCG at 10). Arctic came closest at 0.664.
+
+<BarChart
+  title="No dense encoder beats BM25 on its own"
+  subtitle="Mean of 100 questions, no reranker. The dashed line is BM25 alone. The buttons switch the metric."
+  yLabel="Score"
+  yDomain={[0, 1]}
+  yStep={0.2}
+  groupLabel="Dense encoder"
+  colors={MODE_COLORS}
+  reference={{ value: 0.705, label: "BM25 alone" }}
+  views={[encoderView("ndcg", "nDCG@10"), encoderView("recall", "Recall@10"), encoderView("mrr", "MRR")]}
+/>
+
+The model family mattered more than its size. Going from bge-small to bge-large gained 0.019 nDCG, while switching to Arctic gained 0.097.
+
+Keyword search has an advantage here that real users may not give it. The test questions were written from the chunks, so they reuse the chunks' exact words.
+
+## Result 2: Merging helps only with a strong embedding model
+
+The pink bars above show each embedding model merged with BM25 through RRF. To know whether merging beats BM25 alone, compare the two on each question and look at the interval of the difference.
+
+<ForestPlot
+  title="Only Arctic beats BM25 alone after merging"
+  subtitle="Paired nDCG difference, merged minus BM25 alone, over the same 100 questions. An interval that crosses zero is a tie."
+  xLabel="Difference in nDCG"
+  xDomain={[-0.08, 0.12]}
+  xStep={0.04}
+  rowLabel="Dense encoder"
+  colors={{ "Top 10": SLOTS[0], "Top 50": SLOTS[1] }}
+  rows={pairedRows}
+/>
+
+Only Arctic clears zero: +0.055 nDCG in the top 10, with an interval from +0.012 to +0.098. For the other three encoders the difference is a tie, so merging them with BM25 adds nothing.
+
+The recall curves show the same thing at every depth. Pick an encoder with the buttons; the keyword lines stay the same.
 
 <LineChart
-  title="Arctic fused with BM25 has the highest recall at every depth"
-  subtitle="Share of gold chunks in the top k, mean of 100 questions. The buttons switch the dense encoder; the two keyword rankers stay the same."
+  title="Arctic merged with BM25 has the highest recall at every depth"
+  subtitle="Share of gold chunks in the top k, mean of 100 questions. Hover to read every line at one k."
   x={figures.depth["arctic-m-v2"].k}
   xLabel="k"
   yLabel="Recall"
@@ -95,94 +150,57 @@ Fused with BM25, Arctic has the highest recall at every depth. With the other th
   logX
   colors={MODE_COLORS}
   views={[depthViews[2], depthViews[0], depthViews[1], depthViews[3]]}
-  source="Read from assets/eval/svg/light/<encoder>/retrieval-depth.svg in the project repository."
 />
 
-Postgres `ts_rank` trails BM25 because its two-argument form has no inverse document frequency and no length normalisation.
+Merging also needs balanced weights. An earlier version gave the keyword list a weight of 0.1, so its top hit scored 0.1 / 61 = 0.0016. That is below a dense chunk at rank 40 (0.0100), so keyword results could not rise until the weight became 1.0.
 
-Fusion first needed a weight fix. The keyword side had weight 0.1, fitted on an older 12-paper corpus. A rank-1 keyword hit then scored 0.0016, below the 0.0100 of a rank-40 dense hit ([#47](https://github.com/fcoelhomrc/papers-please/issues/47)).
+## Result 3: The reranker never helped
 
-A sweep put weight 1.0 first for every encoder, and all fused numbers here use it.
+A reranker is a second, slower model. A cross-encoder reads the question and one chunk together and outputs a relevance score, so it is applied only to the top candidates.
 
-## The encoder family mattered more than its size
-
-Moving from bge-small to bge-large added 0.019 nDCG@10, while switching to Arctic added 0.097.
-
-<BarChart
-  title="No dense encoder beats BM25 on its own"
-  subtitle="Mean of 100 questions, no reranker. The dashed line is BM25 alone at 0.705 nDCG@10."
-  yLabel="Score"
-  yDomain={[0, 1]}
-  yStep={0.2}
-  groupLabel="Dense encoder"
-  colors={MODE_COLORS}
-  reference={{ value: 0.705, label: "BM25 alone" }}
-  views={[encoderView("ndcg", "nDCG@10"), encoderView("recall", "Recall@10"), encoderView("mrr", "MRR")]}
-  source="Issues #48 (dense alone) and #49 (fused) in the project repository."
-/>
-
-<ForestPlot
-  title="Only Arctic beats BM25 alone after fusion"
-  subtitle="Paired nDCG difference, fused minus BM25 alone, on the same 100 questions. An interval that crosses zero is a tie."
-  xLabel="Difference in nDCG"
-  xDomain={[-0.08, 0.12]}
-  xStep={0.04}
-  rowLabel="Dense encoder"
-  colors={{ "Top 10": SLOTS[0], "Top 50": SLOTS[1] }}
-  rows={pairedRows}
-  source="Issue #49 in the project repository."
-/>
-
-Qwen3 Embedding on its own has the second-best recall (0.767) and the worst R-precision (0.380). It finds the right chunk and ranks it low.
-
-## The reranker never helped
-
-For every encoder, the best setup without the cross-encoder beat the best setup with it, by 0.048 to 0.094 nDCG ([#49](https://github.com/fcoelhomrc/papers-please/issues/49)).
-
-At matched output size, the reranker cost Arctic 0.05 to 0.10 nDCG. The bge models lost 0.02 to 0.04, inside the intervals, and Qwen3 tied at k=1.
+We tested `ms-marco-MiniLM-L-6-v2` on every encoder. For each one, the best setup without the reranker beat the best setup with it, by 0.048 to 0.094 nDCG.
 
 <BarChart
   title="The reranker never raised nDCG"
-  subtitle="Dense fused with ts_rank, same number of chunks returned with and without the reranker, 95% intervals."
+  subtitle="Dense merged with ts_rank, the same number of chunks returned with and without the reranker, with 95% intervals."
   yLabel="nDCG"
   yDomain={[0, 1]}
   yStep={0.2}
   groupLabel="Chunks returned"
   colors={{ "No reranker": SLOTS[0], "Cross-encoder": SLOTS[1] }}
   views={[rerankViews[2], rerankViews[0], rerankViews[1], rerankViews[3]]}
-  source="Read from assets/eval/svg/light/<encoder>/rerank-matched.svg in the project repository."
 />
 
-I have not tested why. The model, `ms-marco-MiniLM-L-6-v2`, was trained on web search queries, and paper text may be too far from them.
+With Arctic it cost 0.05 to 0.10 nDCG, and with the other encoders the loss was small and inside the intervals.
 
-## The original question beat every rewrite
+The model was trained on web search queries, which look little like questions about research papers. I have not tested whether that explains it.
 
-I tested four rewrites: sub-questions, paraphrases, each of those with the original added back, and HyDE, which searches with a generated answer. The original question ranked first at every depth, for every encoder and for BM25.
+## Result 4: Rewriting the question made retrieval worse
+
+Some pipelines rewrite the question before searching. We tested four rewrites, each generated once by an LLM and cached:
+
+- Decomposition splits the question into sub-questions and searches each.
+- Multi-query writes paraphrases and searches each.
+- Both of those again, with the original question added back.
+- HyDE writes a hypothetical answer and searches with that instead.
 
 <BarChart
   title="The original question beats every rewrite"
-  subtitle="Arctic for dense search. HyDE needs a dense encoder, so BM25 has no HyDE bar. 95% intervals."
+  subtitle="Arctic for dense search. HyDE needs an embedding model, so BM25 has no HyDE bar. 95% intervals."
   yLabel="nDCG"
   yDomain={[0, 0.8]}
   yStep={0.2}
   groupLabel="Chunks returned"
   colors={ARM_COLORS}
   views={[armView("Dense (Arctic)", figures.arms["arctic-m-v2"].Dense), armView("BM25", figures.arms["arctic-m-v2"].BM25)]}
-  source="Read from assets/eval/svg/light/arctic-m-v2/query-arms.svg in the project repository."
 />
 
-Paraphrases lost the most, and HyDE lost more still with Arctic. My guess is that these questions already use the paper's words, so any rewrite moves away from them.
+The original question ranked first at every depth, for every encoder and for BM25. Adding the original back recovered part of the loss. My guess is that these questions already use the papers' own words, so any rewrite moves away from them.
 
-## What I would use
+## What to use, and what to check next
 
-The best measured setup is Arctic fused with BM25, with no reranker and no rewrite: nDCG 0.760 at k=10 and 0.780 at k=50. It took about 2.1 seconds per query, against 0.7 for dense alone. The app's `config.yaml` at `361ff06` still uses bge-large.
+The best setup measured is Arctic merged with BM25, with no reranker and no rewrite. It reaches nDCG 0.760 in the top 10 and 0.780 in the top 50. It takes about 2.1 seconds per query, against 0.7 seconds for dense search alone.
 
-The test questions reuse the papers' words, which favours BM25. Whether BM25 still wins on questions in a user's own words is untested.
+The open question is the test set itself. Its questions copy the papers' wording, which favours BM25. Questions written in users' own words would show whether BM25 still wins.
 
-## Sources
-
-Opened by Claude Code on 28 Oct 2026, while drafting this post with me.
-
-- Scientific Paper Semantic Search repository at [`361ff06`](https://github.com/fcoelhomrc/papers-please/tree/361ff06) (12 Sep 2026): issues [#45](https://github.com/fcoelhomrc/papers-please/issues/45), [#47](https://github.com/fcoelhomrc/papers-please/issues/47), [#48](https://github.com/fcoelhomrc/papers-please/issues/48), [#49](https://github.com/fcoelhomrc/papers-please/issues/49).
-- [`docs/rag-evaluation.md`](https://github.com/fcoelhomrc/papers-please/blob/361ff06/docs/rag-evaluation.md), section 8, for the power figures.
-- Committed figures under [`assets/eval/svg/light/`](https://github.com/fcoelhomrc/papers-please/tree/361ff06/assets/eval/svg/light). The curves and bars here were read back from their coordinates and match the issue tables to three decimals.
+[Part 3](../rag-eval-judge/) moves to the paid branch: grading answers with an LLM judge, and checking that judge first.

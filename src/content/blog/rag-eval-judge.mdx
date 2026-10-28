@@ -1,6 +1,6 @@
 ---
 title: Checking the LLM judge before trusting it
-description: Part 3 of 3. The judge agreed with 81 hand labels at Cohen's kappa 0.83. All seven errors accepted unsupported claims, so its faithfulness scores are an upper bound.
+description: Part 3 of 3. How to test an LLM judge against your own labels before using its scores, and what the tested judge said about each retriever.
 published: 2026-10-28
 tags:
   - rag
@@ -36,112 +36,134 @@ export const judgeVsLabelGroups = [
 
 <SeriesNav title={series.title} parts={series.parts} current="rag-eval-judge" />
 
-DeepSeek V4 Flash agreed with my hand labels at Cohen's kappa 0.83 on 81 statements. All seven of its errors accepted a claim the context did not support. Its faithfulness scores are therefore an upper bound.
+Part 2 scored retrieval with gold chunk ids. Answers are harder: no id tells you whether an answer is true to its sources. For that, pipelines ask another LLM to grade the answer, called an LLM judge.
 
-The data is from the [Scientific Paper Semantic Search repository](https://github.com/fcoelhomrc/papers-please) at commit `361ff06` (12 Sep 2026).
+A judge is a model, and models make mistakes. This guide tests one judge against labels written by hand, before trusting any of its scores. The judge here, DeepSeek V4 Flash, passed: it agreed with the labels at Cohen's kappa 0.83.
 
-## The judge answers one yes-or-no question
+## What the judge decides
 
-Ragas faithfulness splits an answer into statements, then asks the judge whether the context supports each one. I tested only the second step, because the split adds variance unrelated to the judge. The judge sees a passage and a statement and answers 1 or 0.
+The main judged metric is faithfulness: does the answer only say things its sources support? The evaluation library Ragas computes it in two stages.
 
-<Diagram src="blog/rag-eval/judge.svg" alt="83 statements go two ways. I label each one without seeing my intended answer, keeping 81 labels after dropping 2 as unsure. DeepSeek V4 Flash answers 1 or 0 for each. Comparing the two gives kappa 0.83 and accuracy 0.91." />
+1. An LLM splits the answer into short statements.
+2. The judge reads the retrieved passages and each statement, and answers 1 if the passages support it and 0 if not.
 
-## Kappa corrects for chance agreement
+Faithfulness is the share of statements marked 1. We test only stage 2, because that is where the judge decides. Stage 1 adds noise of its own that has nothing to do with the judge.
 
-43% of the statements are supported, so a judge that always answers 0 scores 57% accuracy. Cohen's kappa removes the agreement expected by chance: 0 is chance and 1 is perfect.
+## Step 1: Pick an agreement measure
 
-Across 21 judges on MT-Bench, exact-match agreement overstated kappa by 33.8 to 41.3 points. There, 85% agreement meant a kappa of about 0.48 ([Norman, Rivera and Hughes, 2026](https://arxiv.org/html/2606.19544v1)). I set the pass mark at kappa 0.6 before seeing any data.
+The obvious measure is accuracy, the share of statements where judge and human agree. It flatters. In our test set 43% of statements are supported, so a judge that always answers 0 already scores 57%.
 
-## Each statement targets one failure
+Cohen's kappa fixes this. It compares the observed agreement with the agreement expected by chance, given how often each side says 1. Zero means no better than chance and 1 means perfect.
 
-I wrote 83 statements against real abstracts from the corpus.
+A study of 21 judges on the MT-Bench benchmark found that accuracy overstated kappa by 33.8 to 41.3 points. There, 85% accuracy meant a kappa of about 0.48 ([Norman, Rivera and Hughes, 2026](https://arxiv.org/html/2606.19544v1)). We set the pass mark at kappa 0.6 before running anything.
 
-| Case type | n | It catches a judge that |
+## Step 2: Write statements that target known failures
+
+We need statements whose right answer we know. Each statement pairs a short passage with a claim, built to catch one way a judge can fail.
+
+Here is one passage, kept as a test fixture in the project:
+
+> The policy recovers the robot from 94% of sampled fallen postures on flat ground within 3.2 seconds on average, compared with 61% for the scripted baseline.
+
+Statements against it include "The policy recovers the robot from 84% of sampled fallen postures" (a wrong number, so 0). Against other passages, "Reinforcement learning agents learn from a reward signal" is true in general but not stated, so it is also 0.
+
+| Case type | Statements | It catches a judge that |
 |---|---:|---|
-| Supported | 29 | is too strict |
+| Supported | 29 | rejects claims the passage makes |
 | Paraphrase | 11 | wants the passage's exact words |
 | True but absent | 8 | checks whether a claim is true instead of whether the passage states it |
 | Wrong entity | 7 | misses a swapped subject |
-| Wrong number | 6 | misses 94% turned into 84% |
-| Overgeneralised | 6 | misses a dropped scope qualifier |
+| Wrong number | 6 | misses a changed figure |
+| Overgeneralised | 6 | misses a dropped condition |
 | Unsupported cause | 6 | accepts a "because" the passage never gives |
 | Unrelated | 5 | accepts text about something else |
 | Negation | 5 | misses a reversed claim |
 
-I labelled all 83 on a page that hid my intended answer and the case type. I dropped 2 as unsure, which left 81.
+## Step 3: Label the statements blind
 
-My labels matched my construction on 77 of 81 (95.1%). All four mismatches were statements I had built as supported. Two of them drop the qualifier "on flat ground", which my own labelling rules count as unsupported, so the human labels stand.
+I wrote the 83 statements with an intended answer for each. To check those answers, I labelled every statement again on a page that hid both the intended answer and the case type. Two I could not decide, so I dropped them, leaving 81.
 
-## The judge's errors all go one way
+The blind labels matched my intended answers on 77 of 81 (95.1%). One of the four mismatches was "The policy recovers the robot from 94% of sampled fallen postures". I had meant it as supported, but it drops "on flat ground", and a dropped condition makes a claim unsupported.
 
-On all 81 statements, kappa was 0.828 and accuracy 0.914. Without the four disputed statements, kappa was 0.922 and accuracy 0.961 on 77.
+When the two disagree, the blind label wins. Blind labelling exists to catch exactly these mistakes in my own construction.
+
+<Diagram src="blog/rag-eval/judge.svg" alt="83 statements go two ways. I label each one without seeing my intended answer, keeping 81 labels after dropping 2 as unsure. DeepSeek V4 Flash answers 1 or 0 for each. Comparing the two gives kappa 0.83 and accuracy 0.91." caption="The judge and I answer the same 81 statements independently, then the answers are compared." />
+
+## Step 4: Run the judge and compare
+
+The judge answered 1 or 0 for each of the 81 statements, with a prompt asking only whether the passage supports the statement. Agreement with the blind labels was kappa 0.828 and accuracy 0.914, well above the 0.6 pass mark.
 
 <ConfusionMatrix
   title="The judge never rejected a supported statement"
-  subtitle="DeepSeek V4 Flash against my labels on 81 statements."
+  subtitle="DeepSeek V4 Flash against the blind labels on 81 statements."
   tp={kappa.tp}
   tn={kappa.tn}
   fp={kappa.fp}
   fn={kappa.fn}
-  source="Commit 363e016 in the project repository."
 />
 
-Three errors are true-but-absent statements: correct facts the passage does not state. The other four are the disputed statements, which I worked out from the two accuracy figures (77 statements at 0.961 leave three errors). The judge made no errors on wrong entities, wrong numbers, negations, unsupported causes or unrelated text.
+Read the grid row by row. Of 35 supported statements, the judge accepted all 35. Of 46 unsupported statements, it rejected 39 and accepted 7.
 
-A faithfulness score of 0.90 from this judge therefore likely overstates the true figure. I measured only the judge I had already chosen; a comparison of four candidate judges is designed in the notes and not built.
+## Step 5: Read the errors
 
-## Judged runs agree with the labels and share their bias
+All seven errors go the same way: the judge accepted something the passage does not support. Three were "true but absent" statements, where the claim is correct in general but missing from the passage.
 
-Qwen3 30B answered all 100 questions from the top 10 chunks of each retriever, and the judge scored four Ragas metrics ([#48](https://github.com/fcoelhomrc/papers-please/issues/48)). BM25 led on faithfulness (0.896), context recall (0.841) and context precision (0.693).
+The other four were the four statements where my blind label overruled my intended answer, like the "flat ground" one. Without those four, kappa rises to 0.922 on 77 statements.
+
+The judge never wrongly rejects, and sometimes wrongly accepts. Its faithfulness scores therefore lean high, and a score of 0.90 likely means a true figure somewhat below that.
+
+## Using the judge: answer quality by retriever
+
+With the judge checked, we can grade real answers. For each retriever from part 2, Qwen3 30B answered all 100 questions from the top 10 chunks, and the judge scored four Ragas metrics.
+
+| Metric | Question it answers |
+|---|---|
+| Faithfulness | Does the answer only say what the retrieved chunks support? |
+| Answer relevancy | Does the answer address the question? |
+| Context recall | Do the retrieved chunks contain what the gold answer needs? |
+| Context precision | Are the useful chunks ranked near the top? |
 
 <BarChart
   title="BM25 leads on three of the four judged metrics"
-  subtitle="Dense encoders on their own, top 10 chunks, no reranker, mean of 100 questions."
+  subtitle="Embedding models used on their own, top 10 chunks, no reranker, mean of 100 questions."
   yLabel="Score"
   yDomain={[0, 1]}
   yStep={0.2}
   groupLabel="Ragas metric"
   colors={retrieverColors}
   views={[{ label: "Judged", groups: judgedGroups }]}
-  source="Issue #48 in the project repository. bge-large's answer relevancy was scored before the judge's embedding model was pinned, so that one value is not comparable."
 />
 
-BM25 never abstained, and each encoder abstained three or four times. These runs use the same 100 questions as part 2, so they share its vocabulary bias toward BM25.
+BM25 led on faithfulness (0.896), context recall (0.841) and context precision (0.693). It also never declined to answer, while each embedding model declined three or four times. One value is not comparable: bge-large's answer relevancy was scored with an older judge setting.
 
-The judge rates BM25 retrieval higher than the labels do. Its context recall is 0.841 against a label recall of 0.797, and its context precision is 0.693 against a MAP of 0.626.
+These runs reuse the part 2 questions, so they inherit the same tilt toward keyword search.
+
+## Comparing the judge with the labels
+
+Context recall and context precision measure retrieval, which part 2 measured with gold ids. Putting both side by side shows how far the judge drifts from the labels.
 
 <BarChart
   title="The judge scores BM25 retrieval higher than the labels do"
-  subtitle="Top 10, 95% intervals. Precision means MAP@10 for the labels and Ragas context precision for the judge."
+  subtitle="Top 10, with 95% intervals. Precision means MAP@10 for the labels and Ragas context precision for the judge."
   yLabel="Score"
   yDomain={[0, 1]}
   yStep={0.2}
   colors={{ "Chunk-id labels": SLOTS[0], "LLM judge": SLOTS[1] }}
   views={[{ label: "BM25", groups: judgeVsLabelGroups }]}
-  source="Read from assets/eval/svg/light/bm25/judge-vs-labels.svg in the project repository."
 />
 
-Two causes fit, and this data cannot separate them. The labels miss relevant chunks that were not seeds, and the judge is lenient.
+The judge reads higher on both: 0.841 against 0.797 for recall, and 0.693 against 0.626 for precision. Two causes fit, and this data cannot separate them.
 
-Query rewrites look the same through the judge as in part 2. With Arctic, context recall falls from 0.832 for the original question to 0.70 for HyDE. Decomposition with the original added back is level, at 0.866.
+- The gold ids miss chunks that answer the question but were not its source, so labels score low.
+- The judge is lenient, as step 5 showed, so it scores high.
 
-## Cost
+## What it costs
 
-The four judged runs in #48 cost $0.765 together, about $0.19 per run of 100 questions. The project notes estimate Claude Haiku 4.5 at about 15 times that.
+Four judged runs of 100 questions cost $0.765 in total, about 19 cents each. The project notes estimate Claude Haiku 4.5 at about 15 times that for the same work.
 
 ## Limits
 
 - 83 statements give a direction, with wide error bars on kappa.
-- One person labelled every statement, so there is no human-to-human agreement to compare with.
-- I wrote the cases, so they only test failures I anticipated.
-
-## Sources
-
-Opened by Claude Code on 28 Oct 2026, while drafting this post with me.
-
-- Norman, Rivera and Hughes, [Reliability without Validity](https://arxiv.org/html/2606.19544v1) (arXiv, 2026), section 4.1.
-- Scientific Paper Semantic Search repository at [`361ff06`](https://github.com/fcoelhomrc/papers-please/tree/361ff06) (12 Sep 2026).
-- Commit [`363e016`](https://github.com/fcoelhomrc/papers-please/commit/363e016) for kappa and the error counts.
-- Issue [#48](https://github.com/fcoelhomrc/papers-please/issues/48) for the judged runs and their cost.
-- [`docs/judge-selection-experiment.md`](https://github.com/fcoelhomrc/papers-please/blob/361ff06/docs/judge-selection-experiment.md) for the case types, the labelling and the cost estimate.
-- Committed figures under [`assets/eval/svg/light/`](https://github.com/fcoelhomrc/papers-please/tree/361ff06/assets/eval/svg/light), read back from their coordinates.
+- One person labelled every statement, so there is no second human to compare with.
+- I wrote the statements, so they only test failures I thought of.
+- Only this one judge was tested. A comparison with other judges is designed and has not been run.

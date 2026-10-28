@@ -121,8 +121,8 @@ Generated questions need a review before use. I had Claude Opus score each of th
 The review dropped 34 questions. A quota of 20 per topic, filled by score, then cut 21 more, leaving 100. Every verdict appears on a review page where I can override it by hand.
 
 <BarChart
-  title="OCR artifacts were the most common reason to drop a question"
-  subtitle="Flags on the 34 dropped questions. One question can carry several flags."
+  title="Most dropped questions were about OCR noise"
+  subtitle="Why the review dropped 34 questions. One question can have several reasons."
   yLabel="Questions"
   yDomain={[0, 25]}
   yStep={5}
@@ -131,10 +131,10 @@ The review dropped 34 questions. A quota of 20 per topic, filled by score, then 
   views={[{ label: "Flags", groups: dropFlags.map((f) => ({ label: f.label, bars: [{ name: "Questions", value: f.n }] })) }]}
 />
 
-Two flags matter in any generated set:
+Two of these are easy to miss in any generated set:
 
-- Names its own answer. A question like "What MiniLM variant does X use?" contains the answer's key word. Keyword search finds it every time, so the question cannot tell two retrievers apart.
-- Floating "these". Multi-hop abstract questions often ask about "these approaches" without naming them. No real user asks that.
+- Gives away its answer's keyword. A question like "What MiniLM variant does X use?" contains the answer's key word. Keyword search finds it every time, so the question cannot tell two retrievers apart.
+- Refers to "these" without naming them. Multi-hop abstract questions often ask about "these approaches", which only makes sense to someone who has already read the source chunk.
 
 The review also edited 18 of the kept questions, several to fix wrong gold answers. When you edit a question, edit its gold answer too, or the judge in part 3 grades against a stale one.
 

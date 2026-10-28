@@ -34,11 +34,11 @@ export const synthMix = [
 // eval/testset/judged.jsonl: flags on the 34 questions the review pass
 // dropped. A question can carry more than one flag.
 export const dropFlags = [
-  { label: "OCR artifact", n: 23 },
-  { label: "Unsupported gold answer", n: 13 },
-  { label: "Unrealistic length", n: 11 },
-  { label: "Names its own answer", n: 10 },
-  { label: "Floating “these”", n: 4 },
+  { label: "Asks about OCR\nnoise, not a claim", n: 23 },
+  { label: "Gold answer not in\nits source chunk", n: 13 },
+  { label: "Too long for a real\nuser to type", n: 11 },
+  { label: "Gives away its\nanswer's keyword", n: 10 },
+  { label: "Refers to \"these\"\nwithout naming them", n: 4 },
 ];
 
 // Issue #48: mode=semantic (dense alone) and BM25, top_k=10, rerank off, n=100.

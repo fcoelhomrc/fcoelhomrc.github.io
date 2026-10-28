@@ -1,6 +1,6 @@
 ---
 title: Building a test set from your own papers
-description: Part 1 of 3. I generated 100 retrieval questions over 100 ML papers with Ragas and tied each one to the exact chunks it came from. What broke on the way, and what curation removed.
+description: Part 1 of 3. I built 100 questions over 100 ML papers, each tied to the chunks it came from, so retrieval can be scored without a model.
 published: 2026-10-28
 tags:
   - rag
@@ -30,81 +30,76 @@ export const skewView = (label, v) => ({
 
 <SeriesNav title={series.title} parts={series.parts} current="rag-eval-test-set" />
 
-I built a test set of 100 questions over 100 machine learning papers, and every question points at the exact chunks it was written from. That turns retrieval scoring into arithmetic on integer ids: free, deterministic, and runnable on every change. Parts 2 and 3 build on it.
+I built 100 test questions over 100 machine learning papers, and each question records the ids of the chunks it was written from. Scoring retrieval then needs no model: compare the retrieved ids with the gold ids. Parts 2 and 3 use this set.
 
-This post covers the corpus, the question generation with [Ragas](https://docs.ragas.io), the five things that broke when I ran it, and what curation removed. Everything here is in [papers-please](https://github.com/fcoelhomrc/papers-please), checked against commit `361ff06` (12 Sep 2026).
+The code is in [papers-please](https://github.com/fcoelhomrc/papers-please), checked at commit `361ff06` (12 Sep 2026).
 
-## The system under test
+## The system
 
-Papers, Please pulls papers from Semantic Scholar, runs OCR on the PDFs with Docling, splits the text into 256-token chunks and indexes them. A search page and a chat agent query the index.
+Papers, Please downloads papers, splits them into 256-token chunks and searches them with BM25 and dense vectors. A chat agent answers questions from the search results.
 
-<Diagram src="blog/rag-eval/system.svg" alt="Ingest workers write chunks to Postgres and vectors to Pinecone; the query path runs a LangGraph agent over BM25, dense and fused retrieval, with traces in Phoenix." caption="Ingest on top, queries below. Retrieval combines BM25 over Postgres text with dense vectors from Pinecone." />
+<Diagram src="blog/rag-eval/system.svg" alt="Ingest workers fetch arXiv PDFs, run OCR and embed chunks into Postgres and Pinecone. The query path sends questions from the web app to a LangGraph agent, which searches both stores and sends traces to Phoenix." />
 
-## A corpus built to be hard
+## Five neighbouring topics make retrieval hard
 
-Retrieval is only hard when wrong answers look like right ones. A hundred papers from twenty unrelated fields would be separated by keyword overlap alone, and every configuration would score close to 1.0.
+The corpus is five topics of 20 papers each, chosen to share vocabulary: retrieval and RAG, agents, LLM evaluation, efficient inference, and alignment. Papers from unrelated fields would be told apart by keyword overlap alone.
 
-So the corpus is five topics of 20 papers each, chosen to share vocabulary: retrieval and RAG, agents and tool use, LLM evaluation, efficient inference and quantization, and alignment. I staged 213 candidates from Semantic Scholar and kept 100 by hand, including near-duplicates on purpose (competing methods for the same problem, v1 and v2 of an idea).
+I picked the 100 papers by hand from 213 candidates. The corpus has 11,381 chunks, about 114 per question ([#47](https://github.com/fcoelhomrc/papers-please/issues/47)).
 
-Getting the PDFs needed one trick. Semantic Scholar's open-access link usually points at ACL Anthology, MDPI or doi.org, and doi.org returns 403 to a script. In a sample of 1,000 search results, 73 had an arxiv.org link but 187 had an arXiv id. Building `https://arxiv.org/pdf/{id}` from the id and keeping only arXiv papers gave 100 of 100 downloads ([#41](https://github.com/fcoelhomrc/papers-please/issues/41)).
+All papers come from arXiv. Semantic Scholar's PDF links often go through doi.org, which returns 403 to a script. Building the link from the arXiv id downloaded all 100 papers ([#41](https://github.com/fcoelhomrc/papers-please/issues/41), [#43](https://github.com/fcoelhomrc/papers-please/issues/43)).
 
-The final corpus is 11,381 chunks, about 114 per question. On the first ingest, papers ranged from 28 to 833 chunks ([#43](https://github.com/fcoelhomrc/papers-please/issues/43)).
+## Ragas wrote the questions from a graph of the chunks
 
-## Generating questions with Ragas
+[Ragas](https://docs.ragas.io) builds a knowledge graph and writes questions by walking it. An LLM extracts a summary, themes and entities from each chunk. Edges link chunks with similar summaries or shared entities.
 
-Ragas builds a knowledge graph over your documents, then writes questions by walking it. An LLM extracts a summary, themes and named entities from each node. Edges connect nodes with similar summaries or shared entities. Three synthesizers then pick a node or a cluster and write a question with a gold answer.
+<Diagram src="blog/rag-eval/testset.svg" alt="The corpus feeds a sample of 80 seed chunks per topic into one knowledge graph per topic. Three Ragas question types write 155 questions. Each gold passage is looked up to get its chunk id, then review keeps 100." />
 
-<Diagram src="blog/rag-eval/testset.svg" alt="Corpus to seed pool to a per-topic knowledge graph, then three Ragas synthesizers produce 155 questions, mapped to chunk ids by exact text lookup, reviewed and cut to 100." caption="Seed chunks are sampled per topic; the whole corpus stays in the index as the haystack." />
+Ragas gets the chunks themselves, one document each, with an explicit list of transforms and no splitter. Its default transforms re-split documents over 500 tokens, and a re-split node no longer matches a chunk.
 
-Two settings decide whether the questions can be scored without a model.
+Every gold passage Ragas returns is therefore byte-identical to a row in the chunks table. A dictionary lookup gives its chunk id, and all 155 questions resolved. Questions come from 80 seed chunks per topic, while all 11,381 chunks stay in the index as distractors.
 
-1. I give Ragas my chunks, one document per chunk, instead of the PDFs. Its default transforms insert a `HeadlineSplitter` when a quarter of the documents exceed 500 tokens, and that re-splits nodes. So I pass the transform list explicitly and no splitter ever runs.
-2. Questions come from a seed pool of 80 chunks per topic. The full corpus stays in the index, so every question has thousands of plausible distractors.
+GLM 5.3 Flash wrote the questions. The first run cost $0.354 in model calls, $0.28 of it for the graph; I did not record the cost of the second.
 
-Because nothing re-splits the text, every gold passage Ragas hands back is byte-identical to a row in my `chunks` table. A dictionary lookup turns each passage into a chunk id. All 155 generated questions resolved to at least one chunk id; 46% of the kept questions have one gold chunk, 45% have two and 9% have three.
+## Five failures surfaced only by running it
 
-## What broke when I ran it
+None of the five stopped the run at the point of failure ([#44](https://github.com/fcoelhomrc/papers-please/issues/44)).
 
-None of these raised a clear error at the point of failure. Most of them produced a test set that looked fine.
-
-| Problem | What happened | Fix |
+| Problem | Effect | Fix |
 |---|---|---|
-| Special tokens in the text | LLM papers quote the end-of-text marker, and tiktoken raises on it inside every extractor call | Encode with special tokens allowed as text |
-| Similarity threshold 0.5 | 94.7% of the 79,401 chunk pairs got an edge, and cluster search hung for 13 minutes | Pick the threshold per topic to target about 120 edges (0.74 for agents) |
-| One failed entity extraction | 1 of 1,197 calls hit its token limit; the relationship builder then raised and produced zero entity edges, so no multi-hop specific questions | Drop incomplete nodes between extraction and relationship building |
-| Reasoning ate the output | GLM 5.3 Flash spent all 8,192 output tokens reasoning and returned no answer | Set reasoning effort to low: same JSON, about 4× fewer output tokens |
-| Multi-hop prefixes | Multi-hop passages carry a `<1-hop>` prefix, so 8 of 11 missed the exact lookup on a trial | A counter of unmapped passages caught it before the full run |
+| Papers quote the end-of-text token | tiktoken raised inside every extractor call | Encode special tokens as plain text |
+| Similarity threshold 0.5 | 94.7% of 79,401 chunk pairs got an edge, and cluster search hung for 13 minutes | Pick the threshold per topic for about 120 edges |
+| 1 of 1,197 entity calls hit its token limit | The relationship builder raised and left zero entity edges, so no multi-hop specific questions | Drop incomplete nodes before building edges |
+| GLM 5.3 Flash reasons by default | It spent all 8,192 output tokens reasoning and returned nothing | Set reasoning effort to low |
+| Multi-hop passages start with `<1-hop>` | 8 of 11 missed the exact lookup on a trial | A counter of unmapped passages caught it |
 
-Ragas also drops a synthesizer silently when the graph has no clusters for it. The generator now checks cluster counts first and stops if a synthesizer would get none ([#44](https://github.com/fcoelhomrc/papers-please/issues/44)).
+Ragas also skips a question type without an error when the graph has no clusters for it. The generator now checks cluster counts before it writes anything.
 
-## Balanced seeds did not give balanced questions
+## Balanced seeds gave unbalanced questions
 
-The first set used a seed pool of exactly 80 chunks per topic. Ragas picks seeds by their position in the graph, and the agents papers dominated it.
+The first set drew 80 seed chunks from each topic, yet after review 58 of its 100 questions were about agents and 8 about alignment. Ragas picks seeds by their place in the graph, and the agents papers dominated it ([0e8490c](https://github.com/fcoelhomrc/papers-please/commit/0e8490c)).
 
 <BarChart
-  title="Questions per topic, first set against regenerated set"
-  subtitle="Same 80 seed chunks per topic both times. A question spanning two topics counts under each."
+  title="The first set was mostly about agents"
+  subtitle="Questions per topic, from the same 80 seed chunks per topic. A question on two topics counts under both."
   yLabel="Count"
   yDomain={[0, 80]}
   yStep={20}
   digits={0}
   groupLabel="Topic"
   colors={skewColors}
-  views={[skewView("First set", topicSkew.v1), skewView("Regenerated per topic", topicSkew.v2)]}
-  source="Counts from eval/testset/v1/ and eval/testset/ in papers-please."
+  views={[skewView("First set", topicSkew.v1), skewView("Second set, generated per topic", topicSkew.v2)]}
+  source="eval/testset/v1/ and eval/testset/ in papers-please."
 />
 
-After curation the first set had 58 agents questions and 8 alignment questions, so the headline number mostly measured one topic. Keep rates were similar across topics (62% to 87%), so the skew came from generation. The fix was to generate each topic separately, 31 questions each, and cut to exactly 20 per topic.
+Review kept 62% to 87% of each topic, so the skew came from generation. Generating each topic on its own, 31 questions per topic, fixed it ([aa30c9e](https://github.com/fcoelhomrc/papers-please/commit/aa30c9e)).
 
-## Curation removed a third
+## Review cut 155 questions to 100
 
-Ragas saves you from writing questions. It does not save you from reading them.
-
-The 155 generated questions went through a review pass: Claude Opus scored each one from 0 to 100 in its own call, with reasons and flags. It dropped 34. A quota of 20 per topic, filled by score, cut 21 more. Every verdict goes through the same review page as a manual decision, so any of them can be overridden by hand.
+A review pass dropped 34 questions, and a quota of 20 per topic cut 21 more ([6513c33](https://github.com/fcoelhomrc/papers-please/commit/6513c33)). Claude Opus scored each question from 0 to 100 in a separate call, and the quota kept the highest scores. Any verdict can be overridden by hand on the same review page.
 
 <BarChart
-  title="Why the review pass dropped 34 questions"
-  subtitle="Flags on the dropped questions. One question can carry several."
+  title="OCR artifacts were the most common reason to drop a question"
+  subtitle="Flags on the 34 dropped questions. One question can carry several flags."
   yLabel="Questions"
   yDomain={[0, 25]}
   yStep={5}
@@ -114,36 +109,37 @@ The 155 generated questions went through a review pass: Claude Opus scored each 
   source="eval/testset/judged.jsonl in papers-please, last verdict per question."
 />
 
-Two of these are worth knowing before you generate your own set.
+A question that names its own answer, such as one asking which MiniLM variant a paper used, is found by BM25 on that name alone. Every configuration then scores the same on it. Multi-hop abstract questions often ask about "these approaches" without saying which.
 
-- A question that names its own answer ("What MiniLM variant does...") is retrieved by BM25 on the entity alone. Every configuration then scores the same on it, and real differences vanish.
-- A multi-hop abstract question often asks about "these approaches" without saying which. No user would ask it.
+Review edited 18 of the kept questions, several to fix wrong gold answers from Ragas. An edited question needs its gold answer edited too, or every metric grades against a stale answer.
 
-The review also edited 18 of the kept questions, several to fix factual errors in Ragas' own gold answers. If you edit a question, edit its gold answer too, or every metric that grades against it goes stale.
-
-One finding came from the review prompt itself. The first pass dropped 80% of questions seeded from tables as "OCR artifacts". They were fine: Docling writes a table as `row, column = value` triplets before chunking, and the prompt gave the reviewer no way to tell that format from garbage. A neutral paragraph describing the format moved table-seeded questions from 20% kept to 82%.
+The review prompt caused one wrong result of its own. It dropped 80% of questions seeded from tables as OCR artifacts, because Docling writes a table as `row, column = value` triplets. A paragraph in the prompt describing that format raised the keep rate for table questions from 20% to 82%.
 
 <BarChart
-  title="Question types, generated and kept"
-  subtitle="Multi-hop specific questions were cut hardest."
+  title="Multi-hop specific questions were cut hardest"
+  subtitle="Questions generated and kept, by Ragas question type."
   yLabel="Questions"
   yDomain={[0, 80]}
   yStep={20}
   digits={0}
-  groupLabel="Synthesizer"
+  groupLabel="Question type"
   colors={{ Generated: SLOTS[1], Kept: SLOTS[2] }}
   views={[{ label: "Mix", groups: synthMix.map((s) => ({ label: s.label, bars: [{ name: "Generated", value: s.generated }, { name: "Kept", value: s.kept }] })) }]}
   source="eval/testset/generated.jsonl and curated.jsonl in papers-please."
 />
 
-## Cost, and what this set cannot tell you
+Of the kept questions, 46 have one gold chunk, 45 have two and 9 have three.
 
-The first generation run cost $0.354 in model calls, $0.28 of it for the knowledge graph. I did not record the cost of the regenerated set. Questions come from GLM 5.3 Flash, answers from Qwen3 30B and grades from DeepSeek V4 Flash, so no model grades its own output.
+## Limits
 
-The limits:
+- The questions are synthetic and reuse the words of their chunks, which favours BM25. Part 2 shows the effect.
+- Each question's gold chunks are the passages it came from. Another chunk may answer it as well, so label-based scores are a lower bound.
+- One model reviewed the questions, and no second reviewer checked its verdicts.
 
-- The questions are synthetic. They test what an LLM thought to ask of a passage, and they reuse its vocabulary. Part 2 shows why that matters for BM25.
-- The gold chunks are the passages each question was written from. Another chunk may answer it just as well, so label-based scores undercount and read as a lower bound.
-- Curation had one reviewer model and no second human, so there is no agreement figure for it.
+## Sources
 
-Part 2 uses these 100 questions to compare five retrievers, a reranker and five query rewrites, without a single model call.
+Opened by Claude Code on 28 Oct 2026, while drafting this post with me.
+
+- papers-please at [`361ff06`](https://github.com/fcoelhomrc/papers-please/tree/361ff06) (12 Sep 2026): issues [#41](https://github.com/fcoelhomrc/papers-please/issues/41), [#43](https://github.com/fcoelhomrc/papers-please/issues/43), [#44](https://github.com/fcoelhomrc/papers-please/issues/44), [#47](https://github.com/fcoelhomrc/papers-please/issues/47).
+- Commits [0e8490c](https://github.com/fcoelhomrc/papers-please/commit/0e8490c) (first set archived), [aa30c9e](https://github.com/fcoelhomrc/papers-please/commit/aa30c9e) (per-topic generation) and [6513c33](https://github.com/fcoelhomrc/papers-please/commit/6513c33) (review).
+- Question files under [`services/backend/eval/testset/`](https://github.com/fcoelhomrc/papers-please/tree/361ff06/services/backend/eval/testset), counted directly.

@@ -2,23 +2,23 @@
 ...@_style
 direction: right
 
-cases: 83 statements\nreal abstracts as context\n9 failure types {class: box}
+cases: I write 83 statements\nagainst real abstracts {class: box}
 
 human: Human labels {
   class: group
-  blind: Labelling page\nanswers and case types hidden {class: human}
-  labels: 81 usable labels\n2 unsure, dropped {class: human}
+  blind: I label each statement\nwithout seeing my answer {class: human}
+  labels: 81 labels remain\nafter 2 unsure are dropped {class: human}
   blind -> labels
 }
 
 model: Judge under test {
   class: group
-  prompt: One question\ndoes the context support it? {class: box}
-  judge: DeepSeek V4 Flash\nreplies 1 or 0 {class: model}
+  prompt: Ask whether the passage\nsupports the statement {class: box}
+  judge: DeepSeek V4 Flash\nanswers 1 or 0 {class: model}
   prompt -> judge
 }
 
-kappa: Cohen's kappa 0.83\naccuracy 0.91 {class: result}
+kappa: Agreement is\nkappa 0.83 {class: result}
 
 cases -> human.blind
 cases -> model.prompt

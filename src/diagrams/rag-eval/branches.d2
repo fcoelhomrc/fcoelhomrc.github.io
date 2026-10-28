@@ -2,31 +2,31 @@
 ...@_style
 direction: down
 
-q: Question {class: box}
+q: Test question {class: box}
 
 retrieval: Retrieval under test {
   class: group
-  bm25: BM25 {class: box}
-  dense: Dense encoder {class: model}
-  rrf: Reciprocal rank fusion {class: box}
-  rerank: Cross-encoder rerank, optional {class: model}
+  bm25: Rank chunks with BM25 {class: box}
+  dense: Rank chunks with\na dense encoder {class: model}
+  rrf: Fuse both rankings\nwith RRF {class: box}
+  rerank: Rerank with a\ncross-encoder if enabled {class: model}
   bm25 -> rrf
   dense -> rrf
   rrf -> rerank
 }
 
-free: Free branch, every change {
+free: Free branch runs on every change {
   class: group
-  gold: Retrieved vs gold\nchunk ids {class: human}
-  metrics: Recall, precision, MRR\nnDCG, MAP, 95% CI {class: result}
+  gold: Compare retrieved ids\nwith gold ids {class: human}
+  metrics: Rank metrics with\n95% intervals {class: result}
   gold -> metrics
 }
 
-paid: Paid branch, on demand {
+paid: Paid branch runs on demand {
   class: group
-  answer: Answer\nQwen3 30B {class: model}
-  judge: Judge\nDeepSeek V4 Flash {class: model}
-  scores: Faithfulness, relevancy\ncontext precision, recall {class: result}
+  answer: Qwen3 30B answers\nfrom the chunks {class: model}
+  judge: DeepSeek V4 Flash\ngrades the answer {class: model}
+  scores: Four Ragas scores {class: result}
   answer -> judge -> scores
 }
 

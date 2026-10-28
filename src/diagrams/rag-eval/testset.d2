@@ -5,30 +5,30 @@ grid-columns: 4
 horizontal-gap: 70
 vertical-gap: 70
 
-corpus: Corpus\n100 papers\n11,381 chunks {class: store}
-seed: Seed pool\n80 chunks per topic {class: box}
-kg: Knowledge graph\none per topic {
+corpus: 100 papers\nin 11,381 chunks {class: store}
+seed: Sample 80 seed\nchunks per topic {class: box}
+kg: One knowledge graph per topic {
   class: group
   grid-rows: 2
   vertical-gap: 40
-  extract: LLM extracts summary\nthemes, entities {class: model}
-  edges: Edges: similar summaries\nor shared entities {class: box}
+  extract: An LLM extracts summaries,\nthemes and entities {class: model}
+  edges: Link chunks with similar\nsummaries or shared entities {class: box}
 }
-synth: Ragas synthesizers {
+synth: Ragas writes three question types {
   class: group
   grid-rows: 3
   vertical-gap: 20
-  single: Single-hop specific, 15 {class: model}
-  mhs: Multi-hop specific, 8 {class: model}
-  mha: Multi-hop abstract, 8 {class: model}
+  single: 15 single-hop questions {class: model}
+  mhs: 8 multi-hop specific questions {class: model}
+  mha: 8 multi-hop abstract questions {class: model}
 }
 
 b1: "" {style.opacity: 0}
-curated: 100 questions\n20 per topic {class: result}
-review: Review\nLLM pass, then quota {class: human}
-map: Exact text lookup\nquestion to chunk ids {class: box}
+curated: Keep 100 questions,\n20 per topic {class: result}
+review: An LLM review drops 34\nand a quota cuts 21 {class: human}
+map: Look up each gold passage\nto get its chunk id {class: box}
 
-corpus -> seed: sample
+corpus -> seed
 seed -> kg
 kg.extract -> kg.edges
 kg -> synth

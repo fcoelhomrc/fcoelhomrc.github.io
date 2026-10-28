@@ -4,30 +4,30 @@ direction: right
 
 ingest: Ingest workers {
   class: group
-  scholar: Semantic Scholar\narXiv PDFs {class: box}
-  chunk: Docling OCR\n256-token chunks {class: box}
-  embed: Embed\n4 encoders {class: model}
+  scholar: Fetch arXiv PDFs\nfound on Semantic Scholar {class: box}
+  chunk: Run OCR with Docling and\nsplit into 256-token chunks {class: box}
+  embed: Embed each chunk\nwith four encoders {class: model}
   scholar -> chunk -> embed
 }
 
 query: Query path {
   class: group
   ui: Web app {class: box}
-  agent: LangGraph agent\n4 tools {class: model}
-  retrieve: Retrieval\nBM25 + dense + RRF {class: box}
-  ui -> agent -> retrieve
+  agent: LangGraph agent\nwith four tools {class: model}
+  retrieve: Search BM25 and vectors,\nthen fuse the rankings {class: box}
+  ui -> agent: question
+  agent -> retrieve: search call
 }
 
-pg: Postgres\nchunks, full-text index {class: store}
-pinecone: Pinecone\nvectors {class: store}
-phoenix: Phoenix\ntraces {class: store}
+pg: Postgres holds chunks\nand the text index {class: store}
+pinecone: Pinecone holds\nchunk vectors {class: store}
+phoenix: Phoenix holds\nagent traces {class: store}
 
-ingest.chunk -> pg
-ingest.embed -> pinecone
-query.retrieve -> pg
-query.retrieve -> pinecone
-query.agent -> phoenix {style.stroke-dash: 3}
+ingest.chunk -> pg: writes chunks
+ingest.embed -> pinecone: writes vectors
+query.retrieve -> pg: reads text
+query.retrieve -> pinecone: queries vectors
+query.agent -> phoenix: sends traces {style.stroke-dash: 3}
 
-classes.box.style.font-size: 18
 (** -> **)[*].style.stroke: "#908caa"
 (** -> **)[*].style.font-color: "#908caa"

@@ -3,7 +3,7 @@ export const profile = {
   role: "AI Engineer",
   location: "Porto, Portugal",
   summary:
-    "I build AI systems across the stack, backed by 5+ years in computer vision and far too many hours tweaking NixOS.",
+    "I help AI-native teams improve their product the way frontier labs do: benchmarks built from production data, harness tuning and model routing, and open models post-trained for their use case.",
   email: "fcoelho.mrc at gmail dot com",
   github: "https://github.com/fcoelhomrc",
   linkedin: "https://www.linkedin.com/in/fcoelhomrc/",

@@ -1,0 +1,24 @@
+# Render: d2 --sketch --layout elk --pad 30 host.d2 host.svg
+...@_style
+direction: down
+
+nix: One NixOS config file\nturns k3s on {class: box}
+
+walnut: My desktop, named walnut {
+  class: group
+  k3s: k3s runs as a\nsystemd service {
+    class: group
+    runtime: containerd\nstarts containers {class: box}
+    lb: ServiceLB opens\nports on the host {class: box}
+    dns: CoreDNS resolves\napp names {class: box}
+  }
+  media: Seven app pods in\nthe media namespace {class: model}
+  disk: Folders under\n~/jellyfin {class: store}
+  k3s.runtime -> media: runs
+  media -> disk: mounts
+}
+
+nix -> walnut.k3s: nixos-rebuild switch
+
+(** -> **)[*].style.stroke: "#908caa"
+(** -> **)[*].style.font-color: "#908caa"

@@ -1,0 +1,34 @@
+# Render: d2 --sketch --layout elk --pad 30 flow.d2 flow.svg
+...@_style
+direction: down
+
+viewer: Viewer on a\nphone or TV {class: human}
+seerr: Seerr takes\nrequests {class: box}
+sonarr: Sonarr tracks\nseries and anime {class: box}
+radarr: Radarr tracks\nmovies {class: box}
+prowlarr: Prowlarr searches\nthe indexers {class: box}
+indexers: Indexers list\navailable releases {class: result}
+qbit: qBittorrent downloads\nthrough the VPN {class: model}
+peers: Peers send\nthe file pieces {class: result}
+data: One shared folder:\n/data/torrents and /data/media {class: store}
+bazarr: Bazarr fetches\nsubtitles {class: box}
+jellyfin: Jellyfin scans the\nlibrary and streams {class: box}
+
+viewer -> seerr: 1. requests a title
+seerr -> sonarr: 2. series
+seerr -> radarr: 2. movies
+sonarr -> prowlarr: 3. search
+radarr -> prowlarr: 3. search
+prowlarr -> indexers
+sonarr -> qbit: 4. download job
+radarr -> qbit: 4. download job
+qbit -> peers: WireGuard tunnel {style.stroke-dash: 3}
+qbit -> data: 5. saves to /data/torrents
+sonarr -> data: 6. moves into /data/media
+radarr -> data: 6. moves into /data/media
+bazarr -> data: 7. adds subtitles
+data -> jellyfin: 8. new files
+jellyfin -> viewer: 9. streams {style.stroke-dash: 3}
+
+(** -> **)[*].style.stroke: "#908caa"
+(** -> **)[*].style.font-color: "#908caa"

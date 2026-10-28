@@ -1,0 +1,313 @@
+---
+title: Running a media server on k3s and NixOS
+description: A project breakdown. Why k3s suits a single NixOS desktop, how to install it with a few lines of Nix, and how to deploy and connect seven media apps.
+published: 2026-10-28
+tags:
+  - kubernetes
+  - k3s
+  - nixos
+  - homelab
+draft: false
+---
+
+import Diagram from "../../components/viz/Diagram.astro";
+import BarChart from "../../components/viz/BarChart.astro";
+import { SLOTS } from "../../components/viz/palette";
+
+export const memory = [
+  ["k3s server", 705],
+  ["Jellyfin", 293],
+  ["Seerr", 193],
+  ["Bazarr", 181],
+  ["Radarr", 179],
+  ["Sonarr", 178],
+  ["Prowlarr", 147],
+  ["qBittorrent", 37],
+];
+
+This post breaks down a media server that runs on Kubernetes on my desktop. Seven apps find, download and stream films and series. A phone or TV plays them at home or over my Tailscale network.
+
+The cluster is k3s on NixOS, on one machine. The Kubernetes files are in the [Self-Hosted Media Stack repository](https://github.com/fcoelhomrc/jellyfin-media-server), and the NixOS part is shown in full below.
+
+## What the stack does
+
+Each app runs in its own container and does one job.
+
+| App | Job | Reached from |
+|---|---|---|
+| Jellyfin | Scans the library and streams it to TVs and phones | Outside the cluster |
+| Seerr | A web page where you request a film or series | Outside the cluster |
+| Sonarr | Tracks series and anime, then imports and renames each download | Cluster only |
+| Radarr | Does the same for films | Cluster only |
+| Prowlarr | Keeps the list of indexers, the sites that list releases, for Sonarr and Radarr | Cluster only |
+| qBittorrent | Downloads, with all traffic sent through a VPN | Cluster only |
+| Bazarr | Downloads subtitles and saves them next to each film and episode | Cluster only |
+
+<Diagram src="blog/k3s-media/flow.svg" alt="A viewer requests a title in Seerr. Seerr sends series to Sonarr and films to Radarr. Both search through Prowlarr and send download jobs to qBittorrent, which downloads through a WireGuard tunnel into /data/torrents. Sonarr and Radarr move finished files into /data/media, Bazarr adds subtitles, and Jellyfin streams the new files to the viewer." caption="The path of one request. The numbers give the order." maxWidth="36rem" />
+
+Seerr passes a request to Sonarr or Radarr. They search through Prowlarr and send the best release to qBittorrent. When the download ends, they move it into the library, Bazarr adds subtitles and Jellyfin finds it on its next scan.
+
+## Step 1: Pick a Kubernetes distribution
+
+Kubernetes keeps containers running from files that describe them. A distribution packages it with the parts a cluster needs to run, such as networking and storage. This setup had three constraints:
+
+- One machine, which is also my everyday desktop.
+- The operating system is NixOS, so the cluster should be set up from its config files.
+- A TV must reach Jellyfin on its normal port without an extra load balancer to install.
+
+| Option | What it is | Fit for this machine |
+|---|---|---|
+| kubeadm | The upstream installer for plain Kubernetes | You install networking, a load balancer and storage yourself, then keep each one updated |
+| minikube or kind | A cluster inside a VM or Docker containers, built for development and testing | A TV can only reach an app through extra port mapping or a tunnel |
+| MicroK8s | Canonical's distribution, installed as a snap package | NixOS does not support snaps out of the box |
+| RKE2 | Rancher's distribution, hardened for security audits | Adds compliance setup that one personal machine does not need |
+| Talos | An operating system that only runs Kubernetes | It would replace NixOS, and the desktop with it |
+| k3s | Rancher's lightweight distribution, a single binary under 100 MB | Ships as a NixOS module, with the missing parts included |
+
+k3s includes what plain Kubernetes leaves out. It bundles containerd to run containers, Flannel for pod networking, CoreDNS so apps find each other by name, and a local storage provisioner. It stores the cluster state in SQLite, which is enough for one node.
+
+The deciding part was ServiceLB, k3s's built-in load balancer. On plain Kubernetes, a service of type `LoadBalancer` waits forever until you install something like MetalLB. ServiceLB answers it with the machine's own address, so Jellyfin listens on port 8096 of the desktop.
+
+## Step 2: Install k3s with NixOS
+
+NixOS builds the whole system from config files, and its package set includes a k3s module. This block in my config turns k3s on:
+
+```nix
+services.k3s = {
+  enable = true;
+  role = "server";
+  extraFlags = [
+    "--write-kubeconfig-mode=0640"
+    "--write-kubeconfig-group=k3s"
+  ];
+};
+
+networking.firewall.allowedTCPPorts = [ 6443 ];
+
+users.groups.k3s = { };
+users.users.felipe.extraGroups = [ "k3s" ];
+```
+
+Each line has one purpose:
+
+- `role = "server"` runs the control plane, the part that manages the cluster, on the same node as the apps.
+- Port 6443 is the Kubernetes API, and pods need to reach it.
+- The two flags make the kubeconfig, the credentials file `kubectl` reads, readable by a `k3s` group. Adding my user to that group lets me run `kubectl` without `sudo`.
+
+Apply it with `sudo nixos-rebuild switch`, then check that the node is ready:
+
+```text
+$ kubectl get nodes
+NAME     STATUS   ROLES           AGE   VERSION
+walnut   Ready    control-plane   74d   v1.36.5+k3s1
+```
+
+If a change breaks k3s, `sudo nixos-rebuild switch --rollback` returns to the previous system. The cluster's own files stay in place.
+
+<Diagram src="blog/k3s-media/host.svg" alt="One NixOS config file turns k3s on through nixos-rebuild switch. On the desktop named walnut, k3s runs as a systemd service with containerd, ServiceLB and CoreDNS. containerd runs the seven app pods in the media namespace, which mount folders under ~/jellyfin." caption="NixOS installs k3s, and k3s runs the apps from folders on the same disk." maxWidth="26rem" />
+
+## Step 3: Give pods the GPU (optional)
+
+The desktop has an NVIDIA GPU. The media stack does not use it yet, but GPU pods need three extra pieces on NixOS.
+
+1. `hardware.nvidia-container-toolkit.enable = true;` writes a CDI spec, a file that describes the GPU to container runtimes.
+2. A containerd config template adds a runtime named `nvidia`. NixOS copies it into k3s's folder before k3s starts.
+3. Inside the cluster, a `RuntimeClass` named `nvidia` and a device plugin that reads the CDI spec and advertises the GPU.
+
+Step 2 of that list is the NixOS-specific part:
+
+```nix
+systemd.services.k3s = {
+  preStart = lib.mkAfter ''
+    install -Dm644 ${containerdConfig} \
+      /var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl
+  '';
+  restartTriggers = [ containerdConfig ];
+};
+```
+
+`restartTriggers` restarts k3s whenever the template changes. A pod then asks for the GPU with `runtimeClassName: nvidia` and a `nvidia.com/gpu-all: 1` resource limit.
+
+## Step 4: Lay out the storage
+
+A container loses its files when it restarts, so each app keeps its state in a volume. In Kubernetes, a PersistentVolume (PV) is a piece of storage, and a PersistentVolumeClaim (PVC) is an app's request for one.
+
+Here every PV is a folder on the desktop's disk, declared by hand:
+
+```text
+~/jellyfin/
+├── app-config/          one folder per app: settings and databases
+│   └── bazarr/ jellyfin/ prowlarr/ qbittorrent/ radarr/ seerr/ sonarr/
+└── data/                one 100 GiB volume shared by five apps
+    ├── torrents/        where qBittorrent saves downloads
+    └── media/           the library
+        └── anime/ movies/ series/
+```
+
+Sonarr, Radarr, Bazarr, qBittorrent and Jellyfin all mount `data`. The first four see it at `/data`, so a file has the same path in every app. Sonarr and Radarr can then import a download with a hardlink, which takes no extra space and no copy time.
+
+Jellyfin mounts only `data/media`, read-only, at `/media`. Its transcoding cache is an `emptyDir`, a scratch volume deleted with the pod, capped at 50 GiB.
+
+```yaml
+kind: PersistentVolume
+metadata:
+  name: data
+spec:
+  storageClassName: ""
+  capacity:
+    storage: 100Gi
+  persistentVolumeReclaimPolicy: Retain
+  local:
+    path: /home/felipe/jellyfin/data
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [walnut]
+```
+
+Three fields do the work:
+
+- `storageClassName: ""` turns off automatic provisioning. k3s's built-in provisioner would create folders with generated names, and I wanted the library at a path I chose.
+- `nodeAffinity` ties the volume, and every pod that uses it, to the node named walnut.
+- `Retain` keeps the files on disk when the claim is deleted.
+
+Each PVC names its PV with `volumeName: data`, so a claim can only bind to that one folder.
+
+## Step 5: Deploy the apps
+
+Each app has two files. A Deployment keeps one pod of the app running, and a Service gives that pod a stable name and address.
+
+Apply the namespace and storage first, so the claims exist before the pods ask for them:
+
+```bash
+kubectl apply -f kubernetes/namespace.yaml
+kubectl apply -f kubernetes/storage/
+for app in bazarr jellyfin prowlarr qbittorrent radarr seerr sonarr; do
+  kubectl apply -f "kubernetes/$app/"
+done
+```
+
+The Service type decides who can reach an app. Jellyfin and Seerr use `LoadBalancer`, which ServiceLB maps to the desktop's own ports. The five admin apps use `ClusterIP`, an address that only exists inside the cluster.
+
+<Diagram src="blog/k3s-media/access.svg" alt="A TV or phone at home or over Tailscale reaches ServiceLB on the host address, port 8096, which forwards to Jellyfin on 8096 and Seerr on 5055. Sonarr, Radarr, Prowlarr, Bazarr and qBittorrent are cluster only. Seerr calls them by name, for example http://sonarr:8989, and my terminal reaches them through kubectl port-forward." caption="Two apps face the network; the other five stay inside the cluster." />
+
+ServiceLB listens on the host, so the desktop's Tailscale address works too. My phone reaches Jellyfin away from home with no extra setup.
+
+To open an admin app, forward its port to your own machine:
+
+```bash
+kubectl port-forward -n media service/sonarr 8989:8989
+```
+
+The repository's `port-forward.sh` does this for all five at once. Inside the cluster, CoreDNS turns a Service name into its address. Apps in the same namespace therefore reach each other at addresses like `http://sonarr:8989`, which step 7 uses throughout.
+
+## Step 6: Keep downloads inside the VPN
+
+qBittorrent must never connect to peers without the VPN. The hotio image of qBittorrent includes WireGuard, a VPN protocol, and sets the tunnel up inside the pod:
+
+```yaml
+env:
+  - name: VPN_ENABLED
+    value: "true"
+  - name: VPN_CONF
+    value: wg0
+  - name: VPN_PROVIDER
+    value: proton
+  - name: VPN_AUTO_PORT_FORWARD
+    value: "true"
+securityContext:
+  capabilities:
+    add: [NET_ADMIN]
+```
+
+The image reads `/config/wireguard/wg0.conf`, a file downloaded from Proton VPN and copied into qBittorrent's config folder. `NET_ADMIN` lets the container create the `wg0` network interface and its firewall rules.
+
+Two layers stop leaks. The pod's firewall drops all traffic by default and sends the rest through `wg0`. qBittorrent is also bound to `wg0`, so if the tunnel goes down it cannot reach peers at all.
+
+The image also asks Proton for a forwarded port, so other peers can connect in. qBittorrent waits for that port before it starts, as the pod log shows:
+
+```text
+[VPN] Interface [wg0] is online.
+[VPN] Routing all other IPv4 traffic via interface [wg0].
+[QBITTORRENT] Delaying start until forwarded port is available.
+[FORWARDER] Forwarded port is [<port>].
+```
+
+## Step 7: Connect the apps by hand
+
+The manifests start seven apps that know nothing about each other. Their connections live in each app's own settings, saved in its config folder, so you set them once in each web page.
+
+Order matters, because each app points at the ones set up before it. Sonarr and Radarr each show an API key under Settings, General; Prowlarr, Bazarr and Seerr ask for those keys.
+
+| Order | App | Setting | Value |
+|---:|---|---|---|
+| 1 | qBittorrent | Advanced, network interface | `wg0` |
+| | | Default save path | `/data/torrents` |
+| 2 | Sonarr | Root folders | `/data/media/series` and `/data/media/anime` |
+| | | Download client | qBittorrent at host `qbittorrent`, port 8080, category `tv-sonarr` |
+| 3 | Radarr | Root folder | `/data/media/movies` |
+| | | Download client | qBittorrent at host `qbittorrent`, port 8080, category `radarr` |
+| 4 | Prowlarr | Indexers | Add each indexer site you use |
+| | | Apps | Sonarr at `http://sonarr:8989` and Radarr at `http://radarr:7878`, with full sync |
+| 5 | Bazarr | Sonarr and Radarr | Hosts `sonarr` and `radarr`, with their ports and API keys |
+| | | Languages and providers | The subtitle languages and sites you want |
+| 6 | Jellyfin | Libraries | Shows at `/media/series`, Anime at `/media/anime`, Movies at `/media/movies` |
+| 7 | Seerr | Media server | Jellyfin at host `jellyfin`, port 8096 |
+| | | Services | Sonarr and Radarr by host name, with the same root folders as above |
+
+Two details are easy to get wrong:
+
+- The category tags each download, so Sonarr and Radarr only import their own files.
+- Jellyfin's paths start at `/media`, while every other app uses `/data/media`. Both point at the same folder, mounted differently.
+
+Prowlarr's full sync pushes every indexer to Sonarr and Radarr. Adding a new indexer in Prowlarr is then enough for both.
+
+## How much it uses
+
+At idle, the seven apps use about 1.2 GiB of memory between them, on a desktop with 30 GiB. Each used 1 millicore of CPU, a thousandth of one core.
+
+<BarChart
+  title="The k3s server uses more memory than any single app"
+  subtitle="Memory in MiB at idle on 28 Oct 2026. Apps measured with kubectl top; the k3s server is its resident memory from ps."
+  yLabel="MiB"
+  yDomain={[0, 800]}
+  yStep={200}
+  digits={0}
+  groupLabel="Process"
+  colors={{ Memory: SLOTS[0] }}
+  views={[{ label: "Memory", groups: memory.map(([label, value]) => ({ label, bars: [{ name: "Memory", value }] })) }]}
+/>
+
+The k3s server takes about 0.7 GiB, more than Jellyfin. That is the cost of running Kubernetes itself on this machine.
+
+## What went wrong: evictions when the disk filled
+
+Kubernetes protects a node by evicting pods when free disk space drops below a threshold. k3s sets that threshold at 5% free, which on this 882 GiB disk is about 47 GB.
+
+The same disk holds everything else I do on the desktop. In October it crossed the line, and Kubernetes evicted Jellyfin with this message:
+
+```text
+The node was low on resource: ephemeral-storage.
+Container jellyfin was using 63632Ki, request is 0,
+has larger consumption of ephemeral-storage.
+```
+
+Jellyfin went first because it used the most scratch space. While the disk stayed low, every new Jellyfin pod was rejected on arrival, and ten failed pods were left in the list.
+
+Freeing space fixed it. These two commands show the pressure and clear the failed pods:
+
+```bash
+kubectl describe node walnut | grep -i pressure
+kubectl delete pod -n media --field-selector=status.phase=Failed
+```
+
+## Limits
+
+- One node runs everything. When the desktop is off, so is the stack, and the local volumes tie every app to that one machine.
+- App settings live in the config folders, outside git. Rebuilding from scratch means repeating step 7 by hand.
+- The images use the `latest` tag, so a restart can pull a new version without warning.
+- Jellyfin transcodes on the CPU. The GPU is available to pods, but Jellyfin is not set up to use it yet.
+- The media disk is the system disk, so the eviction above can happen again.

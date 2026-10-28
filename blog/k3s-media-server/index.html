@@ -1,0 +1,338 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><meta name="generator" content="Astro v7.2.10"><meta name="description" content="A project breakdown. Why k3s suits a single NixOS desktop, how to install it with a few lines of Nix, and how to deploy and connect seven media apps."><meta name="theme-color" content="#191724"><link rel="canonical" href="https://fcoelhomrc.github.io/blog/k3s-media-server/"><link rel="icon" href="/favicon.png" type="image/png"><link rel="alternate" type="application/rss+xml" title="Felipe Coutinho blog" href="/rss.xml"><meta property="og:type" content="website"><meta property="og:title" content="Running a media server on k3s and NixOS | Felipe Coutinho"><meta property="og:description" content="A project breakdown. Why k3s suits a single NixOS desktop, how to install it with a few lines of Nix, and how to deploy and connect seven media apps."><meta property="og:url" content="https://fcoelhomrc.github.io/blog/k3s-media-server/"><meta property="og:image" content="https://fcoelhomrc.github.io/profile.jpg"><meta name="twitter:card" content="summary"><title>Running a media server on k3s and NixOS | Felipe Coutinho</title><script type="application/ld+json">{"@context":"https://schema.org","@type":"Person","name":"Felipe Coutinho","url":"https://fcoelhomrc.github.io/","jobTitle":"AI Engineer","sameAs":["https://github.com/fcoelhomrc","https://www.linkedin.com/in/fcoelhomrc/"]}</script><link rel="stylesheet" href="/_astro/BaseLayout.BMhWrAKT.css"><style>.viz{--viz-surface:var(--surface);--viz-grid:#2e2b42;--viz-axis:var(--border);--viz-ink:var(--text);--viz-ink-2:var(--subtle);--viz-ink-3:var(--muted);border:1px solid var(--border);background:var(--viz-surface);border-radius:.8rem;margin:2.25rem 0;padding:1.1rem 1.1rem .9rem}.viz-head{gap:.15rem;margin-bottom:.8rem;display:grid}.viz-title{color:var(--viz-ink);font-size:1rem;font-weight:600;line-height:1.35}.viz-subtitle{color:var(--viz-ink-2);font-size:.88rem;line-height:1.45}.viz-views{flex-wrap:wrap;gap:.35rem;margin-bottom:.7rem;display:flex}.viz-views button{border:1px solid var(--border);color:var(--viz-ink-2);font:inherit;cursor:pointer;background:0 0;border-radius:999px;padding:.25rem .7rem;font-size:.8rem}.viz-views button:hover{background:var(--overlay);color:var(--viz-ink)}.viz-views button[aria-pressed=true]{border-color:var(--viz-ink-2);background:var(--overlay);color:var(--viz-ink);font-weight:600}.viz-legend{color:var(--viz-ink-2);flex-wrap:wrap;gap:.3rem 1rem;margin:0 0 .5rem;padding:0;font-size:.8rem;list-style:none;display:flex}.viz-legend li{align-items:center;gap:.4rem;display:inline-flex}.viz-key{background:var(--key);flex:none;display:inline-block}.viz-key.rect{border-radius:2px;width:.7rem;height:.7rem}.viz-key.line{border-radius:1px;width:1rem;height:2px}.viz-key.dash{border-top:2px dashed var(--key);background:0 0;width:1rem;height:0}.viz-plot{position:relative;overflow-x:auto}.viz-plot svg{width:100%;min-width:34rem;height:auto;display:block;overflow:visible}.viz-plot text{fill:var(--viz-ink-3);font-variant-numeric:tabular-nums;font-family:Inter,system-ui,sans-serif;font-size:11px}.viz-plot .viz-label{fill:var(--viz-ink-2);font-size:11px}.viz-plot .viz-axis-title{fill:var(--viz-ink-2);font-size:11.5px}.viz-plot .viz-grid{stroke:var(--viz-grid);stroke-width:1px}.viz-plot .viz-baseline{stroke:var(--viz-axis);stroke-width:1px}.viz-plot .viz-ref{stroke:var(--viz-ink-2);stroke-width:1.5px;stroke-dasharray:5 4}.viz-plot .viz-whisker{stroke:var(--viz-ink-2);stroke-width:1.2px}.viz-plot .viz-line{fill:none;stroke-width:2px;stroke-linejoin:round;stroke-linecap:round}.viz-plot .viz-dot{stroke:var(--viz-surface);stroke-width:2px}.viz-plot .viz-cross{stroke:var(--viz-ink-3);stroke-width:1px;display:none}.viz-plot [data-tip]{cursor:default;outline:none;transition:opacity .12s}.viz-plot [data-tip]:hover .viz-mark,.viz-plot [data-tip].is-hover .viz-mark,.viz-plot [data-tip]:focus-visible .viz-mark{filter:brightness(1.25)}.viz-plot [data-tip]:focus-visible .viz-hitbox{stroke:var(--viz-ink);stroke-width:1px}.viz-plot .viz-hitbox{fill:#0000}.viz-tip{z-index:2;border:1px solid var(--border);background:var(--base);pointer-events:none;border-radius:.5rem;min-width:9rem;max-width:17rem;padding:.5rem .65rem;font-size:.78rem;line-height:1.4;display:none;position:absolute;box-shadow:0 6px 20px #00000059}.viz-tip-title{color:var(--viz-ink-2);margin-bottom:.25rem;font-weight:600}.viz-tip-row{color:var(--viz-ink-2);grid-template-columns:.8rem auto 1fr;align-items:center;gap:.45rem;display:grid}.viz-tip-row strong{color:var(--viz-ink);font-variant-numeric:tabular-nums}.viz-tip-key{border-radius:1px;width:.8rem;height:2px}.viz-table{margin-top:.6rem;font-size:.82rem}.viz-table summary{color:var(--viz-ink-3);cursor:pointer}.viz-table summary:hover{color:var(--viz-ink-2)}.viz-table>div{overflow-x:auto}.viz-table table{border-collapse:collapse;font-variant-numeric:tabular-nums;width:100%;margin-top:.5rem}.viz-table th,.viz-table td{border-bottom:1px solid var(--viz-grid);text-align:right;white-space:nowrap;padding:.3rem .6rem}.viz-table th:first-child{text-align:left}.viz-table thead th{color:var(--viz-ink-2);font-weight:600}.viz-table tbody th{color:var(--viz-ink-2);font-weight:400}.viz-table td{color:var(--viz-ink)}.viz-table-view{color:var(--viz-ink-2);margin:.6rem 0 0;font-weight:600}.viz-source{color:var(--viz-ink-3);margin:.6rem 0 0;font-size:.78rem}
+</style></head><body><header class="site-header"><nav class="shell nav" aria-label="Main navigation"><a class="brand" href="/">Felipe Coutinho</a><div class="nav-links"><a href="/#projects">Projects</a><a href="/blog/" aria-current="page">Blog</a></div></nav></header><main class="shell"><article class="prose"><header><p class="eyebrow">Blog</p><h1>Running a media server on k3s and NixOS</h1><p class="lede">A project breakdown. Why k3s suits a single NixOS desktop, how to install it with a few lines of Nix, and how to deploy and connect seven media apps.</p><time class="meta" datetime="2026-10-28T00:00:00.000Z">October 28, 2026</time></header><p>This post breaks down a media server that runs on Kubernetes on my desktop. Seven apps find, download and stream films and series. A phone or TV plays them at home or over my Tailscale network.</p>
+<p>The cluster is k3s on NixOS, on one machine. The Kubernetes files are in the <a href="https://github.com/fcoelhomrc/jellyfin-media-server">Self-Hosted Media Stack repository</a>, and the NixOS part is shown in full below.</p>
+<h2 id="what-the-stack-does">What the stack does</h2>
+<p>Each app runs in its own container and does one job.</p>
+<table>
+<thead>
+<tr>
+<th>App</th>
+<th>Job</th>
+<th>Reached from</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Jellyfin</td>
+<td>Scans the library and streams it to TVs and phones</td>
+<td>Outside the cluster</td>
+</tr>
+<tr>
+<td>Seerr</td>
+<td>A web page where you request a film or series</td>
+<td>Outside the cluster</td>
+</tr>
+<tr>
+<td>Sonarr</td>
+<td>Tracks series and anime, then imports and renames each download</td>
+<td>Cluster only</td>
+</tr>
+<tr>
+<td>Radarr</td>
+<td>Does the same for films</td>
+<td>Cluster only</td>
+</tr>
+<tr>
+<td>Prowlarr</td>
+<td>Keeps the list of indexers, the sites that list releases, for Sonarr and Radarr</td>
+<td>Cluster only</td>
+</tr>
+<tr>
+<td>qBittorrent</td>
+<td>Downloads, with all traffic sent through a VPN</td>
+<td>Cluster only</td>
+</tr>
+<tr>
+<td>Bazarr</td>
+<td>Downloads subtitles and saves them next to each film and episode</td>
+<td>Cluster only</td>
+</tr>
+</tbody>
+</table>
+<figure class="diagram"><a href="/blog/k3s-media/flow.svg" aria-label="Open the full-size diagram: A viewer requests a title in Seerr. Seerr sends series to Sonarr and films to Radarr. Both search through Prowlarr and send download jobs to qBittorrent, which downloads through a WireGuard tunnel into /data/torrents. Sonarr and Radarr move finished files into /data/media, Bazarr adds subtitles, and Jellyfin streams the new files to the viewer."><img src="/blog/k3s-media/flow.svg" alt="A viewer requests a title in Seerr. Seerr sends series to Sonarr and films to Radarr. Both search through Prowlarr and send download jobs to qBittorrent, which downloads through a WireGuard tunnel into /data/torrents. Sonarr and Radarr move finished files into /data/media, Bazarr adds subtitles, and Jellyfin streams the new files to the viewer." loading="lazy" style="max-width:36rem"></a><figcaption>The path of one request. The numbers give the order.</figcaption></figure>
+<p>Seerr passes a request to Sonarr or Radarr. They search through Prowlarr and send the best release to qBittorrent. When the download ends, they move it into the library, Bazarr adds subtitles and Jellyfin finds it on its next scan.</p>
+<h2 id="step-1-pick-a-kubernetes-distribution">Step 1: Pick a Kubernetes distribution</h2>
+<p>Kubernetes keeps containers running from files that describe them. A distribution packages it with the parts a cluster needs to run, such as networking and storage. This setup had three constraints:</p>
+<ul>
+<li>One machine, which is also my everyday desktop.</li>
+<li>The operating system is NixOS, so the cluster should be set up from its config files.</li>
+<li>A TV must reach Jellyfin on its normal port without an extra load balancer to install.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>What it is</th>
+<th>Fit for this machine</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>kubeadm</td>
+<td>The upstream installer for plain Kubernetes</td>
+<td>You install networking, a load balancer and storage yourself, then keep each one updated</td>
+</tr>
+<tr>
+<td>minikube or kind</td>
+<td>A cluster inside a VM or Docker containers, built for development and testing</td>
+<td>A TV can only reach an app through extra port mapping or a tunnel</td>
+</tr>
+<tr>
+<td>MicroK8s</td>
+<td>Canonical’s distribution, installed as a snap package</td>
+<td>NixOS does not support snaps out of the box</td>
+</tr>
+<tr>
+<td>RKE2</td>
+<td>Rancher’s distribution, hardened for security audits</td>
+<td>Adds compliance setup that one personal machine does not need</td>
+</tr>
+<tr>
+<td>Talos</td>
+<td>An operating system that only runs Kubernetes</td>
+<td>It would replace NixOS, and the desktop with it</td>
+</tr>
+<tr>
+<td>k3s</td>
+<td>Rancher’s lightweight distribution, a single binary under 100 MB</td>
+<td>Ships as a NixOS module, with the missing parts included</td>
+</tr>
+</tbody>
+</table>
+<p>k3s includes what plain Kubernetes leaves out. It bundles containerd to run containers, Flannel for pod networking, CoreDNS so apps find each other by name, and a local storage provisioner. It stores the cluster state in SQLite, which is enough for one node.</p>
+<p>The deciding part was ServiceLB, k3s’s built-in load balancer. On plain Kubernetes, a service of type <code>LoadBalancer</code> waits forever until you install something like MetalLB. ServiceLB answers it with the machine’s own address, so Jellyfin listens on port 8096 of the desktop.</p>
+<h2 id="step-2-install-k3s-with-nixos">Step 2: Install k3s with NixOS</h2>
+<p>NixOS builds the whole system from config files, and its package set includes a k3s module. This block in my config turns k3s on:</p>
+<pre class="astro-code rose-pine-moon" style="background-color:#232136;color:#e0def4;overflow-x:auto" tabindex="0" data-language="nix"><code><span class="line"><span style="color:#C4A7E7;font-style:italic">services</span><span style="color:#3E8FB0">.</span><span style="color:#C4A7E7;font-style:italic">k3s</span><span style="color:#EB6F92"> =</span><span style="color:#908CAA"> {</span></span>
+<span class="line"><span style="color:#C4A7E7;font-style:italic">  enable</span><span style="color:#3E8FB0"> =</span><span style="color:#EA9A97"> true</span><span style="color:#908CAA">;</span></span>
+<span class="line"><span style="color:#C4A7E7;font-style:italic">  role</span><span style="color:#3E8FB0"> =</span><span style="color:#F6C177"> &quot;server&quot;</span><span style="color:#908CAA">;</span></span>
+<span class="line"><span style="color:#C4A7E7;font-style:italic">  extraFlags</span><span style="color:#3E8FB0"> =</span><span style="color:#908CAA"> [</span></span>
+<span class="line"><span style="color:#F6C177">    &quot;--write-kubeconfig-mode=0640&quot;</span></span>
+<span class="line"><span style="color:#F6C177">    &quot;--write-kubeconfig-group=k3s&quot;</span></span>
+<span class="line"><span style="color:#908CAA">  ];</span></span>
+<span class="line"><span style="color:#908CAA">}</span><span style="color:#EB6F92">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#C4A7E7;font-style:italic">networking</span><span style="color:#3E8FB0">.</span><span style="color:#C4A7E7;font-style:italic">firewall</span><span style="color:#3E8FB0">.</span><span style="color:#C4A7E7;font-style:italic">allowedTCPPorts</span><span style="color:#EB6F92"> =</span><span style="color:#908CAA"> [</span><span style="color:#EA9A97"> 6443</span><span style="color:#908CAA"> ]</span><span style="color:#EB6F92">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#C4A7E7;font-style:italic">users</span><span style="color:#3E8FB0">.</span><span style="color:#C4A7E7;font-style:italic">groups</span><span style="color:#3E8FB0">.</span><span style="color:#C4A7E7;font-style:italic">k3s</span><span style="color:#EB6F92"> =</span><span style="color:#908CAA"> {</span><span style="color:#908CAA"> }</span><span style="color:#EB6F92">;</span></span>
+<span class="line"><span style="color:#C4A7E7;font-style:italic">users</span><span style="color:#3E8FB0">.</span><span style="color:#C4A7E7;font-style:italic">users</span><span style="color:#3E8FB0">.</span><span style="color:#C4A7E7;font-style:italic">felipe</span><span style="color:#3E8FB0">.</span><span style="color:#C4A7E7;font-style:italic">extraGroups</span><span style="color:#EB6F92"> =</span><span style="color:#908CAA"> [</span><span style="color:#F6C177"> &quot;k3s&quot;</span><span style="color:#908CAA"> ]</span><span style="color:#EB6F92">;</span></span></code></pre>
+<p>Each line has one purpose:</p>
+<ul>
+<li><code>role = &quot;server&quot;</code> runs the control plane, the part that manages the cluster, on the same node as the apps.</li>
+<li>Port 6443 is the Kubernetes API, and pods need to reach it.</li>
+<li>The two flags make the kubeconfig, the credentials file <code>kubectl</code> reads, readable by a <code>k3s</code> group. Adding my user to that group lets me run <code>kubectl</code> without <code>sudo</code>.</li>
+</ul>
+<p>Apply it with <code>sudo nixos-rebuild switch</code>, then check that the node is ready:</p>
+<pre class="astro-code rose-pine-moon" style="background-color:#232136;color:#e0def4;overflow-x:auto" tabindex="0" data-language="text"><code><span class="line"><span>$ kubectl get nodes</span></span>
+<span class="line"><span>NAME     STATUS   ROLES           AGE   VERSION</span></span>
+<span class="line"><span>walnut   Ready    control-plane   74d   v1.36.5+k3s1</span></span></code></pre>
+<p>If a change breaks k3s, <code>sudo nixos-rebuild switch --rollback</code> returns to the previous system. The cluster’s own files stay in place.</p>
+<figure class="diagram"><a href="/blog/k3s-media/host.svg" aria-label="Open the full-size diagram: One NixOS config file turns k3s on through nixos-rebuild switch. On the desktop named walnut, k3s runs as a systemd service with containerd, ServiceLB and CoreDNS. containerd runs the seven app pods in the media namespace, which mount folders under ~/jellyfin."><img src="/blog/k3s-media/host.svg" alt="One NixOS config file turns k3s on through nixos-rebuild switch. On the desktop named walnut, k3s runs as a systemd service with containerd, ServiceLB and CoreDNS. containerd runs the seven app pods in the media namespace, which mount folders under ~/jellyfin." loading="lazy" style="max-width:26rem"></a><figcaption>NixOS installs k3s, and k3s runs the apps from folders on the same disk.</figcaption></figure>
+<h2 id="step-3-give-pods-the-gpu-optional">Step 3: Give pods the GPU (optional)</h2>
+<p>The desktop has an NVIDIA GPU. The media stack does not use it yet, but GPU pods need three extra pieces on NixOS.</p>
+<ol>
+<li><code>hardware.nvidia-container-toolkit.enable = true;</code> writes a CDI spec, a file that describes the GPU to container runtimes.</li>
+<li>A containerd config template adds a runtime named <code>nvidia</code>. NixOS copies it into k3s’s folder before k3s starts.</li>
+<li>Inside the cluster, a <code>RuntimeClass</code> named <code>nvidia</code> and a device plugin that reads the CDI spec and advertises the GPU.</li>
+</ol>
+<p>Step 2 of that list is the NixOS-specific part:</p>
+<pre class="astro-code rose-pine-moon" style="background-color:#232136;color:#e0def4;overflow-x:auto" tabindex="0" data-language="nix"><code><span class="line"><span style="color:#C4A7E7;font-style:italic">systemd</span><span style="color:#3E8FB0">.</span><span style="color:#C4A7E7;font-style:italic">services</span><span style="color:#3E8FB0">.</span><span style="color:#C4A7E7;font-style:italic">k3s</span><span style="color:#EB6F92"> =</span><span style="color:#908CAA"> {</span></span>
+<span class="line"><span style="color:#C4A7E7;font-style:italic">  preStart</span><span style="color:#3E8FB0"> =</span><span style="color:#C4A7E7;font-style:italic"> lib</span><span style="color:#3E8FB0">.</span><span style="color:#C4A7E7;font-style:italic">mkAfter</span><span style="color:#F6C177"> &#39;&#39;</span></span>
+<span class="line"><span style="color:#F6C177">    install -Dm644 </span><span style="color:#908CAA">${</span><span style="color:#C4A7E7;font-style:italic">containerdConfig</span><span style="color:#908CAA">}</span><span style="color:#F6C177"> \</span></span>
+<span class="line"><span style="color:#F6C177">      /var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl</span></span>
+<span class="line"><span style="color:#F6C177">  &#39;&#39;</span><span style="color:#908CAA">;</span></span>
+<span class="line"><span style="color:#C4A7E7;font-style:italic">  restartTriggers</span><span style="color:#3E8FB0"> =</span><span style="color:#908CAA"> [</span><span style="color:#C4A7E7;font-style:italic"> containerdConfig</span><span style="color:#908CAA"> ];</span></span>
+<span class="line"><span style="color:#908CAA">}</span><span style="color:#EB6F92">;</span></span></code></pre>
+<p><code>restartTriggers</code> restarts k3s whenever the template changes. A pod then asks for the GPU with <code>runtimeClassName: nvidia</code> and a <code>nvidia.com/gpu-all: 1</code> resource limit.</p>
+<h2 id="step-4-lay-out-the-storage">Step 4: Lay out the storage</h2>
+<p>A container loses its files when it restarts, so each app keeps its state in a volume. In Kubernetes, a PersistentVolume (PV) is a piece of storage, and a PersistentVolumeClaim (PVC) is an app’s request for one.</p>
+<p>Here every PV is a folder on the desktop’s disk, declared by hand:</p>
+<pre class="astro-code rose-pine-moon" style="background-color:#232136;color:#e0def4;overflow-x:auto" tabindex="0" data-language="text"><code><span class="line"><span>~/jellyfin/</span></span>
+<span class="line"><span>├── app-config/          one folder per app: settings and databases</span></span>
+<span class="line"><span>│   └── bazarr/ jellyfin/ prowlarr/ qbittorrent/ radarr/ seerr/ sonarr/</span></span>
+<span class="line"><span>└── data/                one 100 GiB volume shared by five apps</span></span>
+<span class="line"><span>    ├── torrents/        where qBittorrent saves downloads</span></span>
+<span class="line"><span>    └── media/           the library</span></span>
+<span class="line"><span>        └── anime/ movies/ series/</span></span></code></pre>
+<p>Sonarr, Radarr, Bazarr, qBittorrent and Jellyfin all mount <code>data</code>. The first four see it at <code>/data</code>, so a file has the same path in every app. Sonarr and Radarr can then import a download with a hardlink, which takes no extra space and no copy time.</p>
+<p>Jellyfin mounts only <code>data/media</code>, read-only, at <code>/media</code>. Its transcoding cache is an <code>emptyDir</code>, a scratch volume deleted with the pod, capped at 50 GiB.</p>
+<pre class="astro-code rose-pine-moon" style="background-color:#232136;color:#e0def4;overflow-x:auto" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#9CCFD8">kind</span><span style="color:#908CAA">:</span><span style="color:#F6C177"> PersistentVolume</span></span>
+<span class="line"><span style="color:#9CCFD8">metadata</span><span style="color:#908CAA">:</span></span>
+<span class="line"><span style="color:#9CCFD8">  name</span><span style="color:#908CAA">:</span><span style="color:#F6C177"> data</span></span>
+<span class="line"><span style="color:#9CCFD8">spec</span><span style="color:#908CAA">:</span></span>
+<span class="line"><span style="color:#9CCFD8">  storageClassName</span><span style="color:#908CAA">:</span><span style="color:#F6C177"> &quot;&quot;</span></span>
+<span class="line"><span style="color:#9CCFD8">  capacity</span><span style="color:#908CAA">:</span></span>
+<span class="line"><span style="color:#9CCFD8">    storage</span><span style="color:#908CAA">:</span><span style="color:#F6C177"> 100Gi</span></span>
+<span class="line"><span style="color:#9CCFD8">  persistentVolumeReclaimPolicy</span><span style="color:#908CAA">:</span><span style="color:#F6C177"> Retain</span></span>
+<span class="line"><span style="color:#9CCFD8">  local</span><span style="color:#908CAA">:</span></span>
+<span class="line"><span style="color:#9CCFD8">    path</span><span style="color:#908CAA">:</span><span style="color:#F6C177"> /home/felipe/jellyfin/data</span></span>
+<span class="line"><span style="color:#9CCFD8">  nodeAffinity</span><span style="color:#908CAA">:</span></span>
+<span class="line"><span style="color:#9CCFD8">    required</span><span style="color:#908CAA">:</span></span>
+<span class="line"><span style="color:#9CCFD8">      nodeSelectorTerms</span><span style="color:#908CAA">:</span></span>
+<span class="line"><span style="color:#908CAA">        -</span><span style="color:#9CCFD8"> matchExpressions</span><span style="color:#908CAA">:</span></span>
+<span class="line"><span style="color:#908CAA">            -</span><span style="color:#9CCFD8"> key</span><span style="color:#908CAA">:</span><span style="color:#F6C177"> kubernetes.io/hostname</span></span>
+<span class="line"><span style="color:#9CCFD8">              operator</span><span style="color:#908CAA">:</span><span style="color:#F6C177"> In</span></span>
+<span class="line"><span style="color:#9CCFD8">              values</span><span style="color:#908CAA">:</span><span style="color:#908CAA"> [</span><span style="color:#F6C177">walnut</span><span style="color:#908CAA">]</span></span></code></pre>
+<p>Three fields do the work:</p>
+<ul>
+<li><code>storageClassName: &quot;&quot;</code> turns off automatic provisioning. k3s’s built-in provisioner would create folders with generated names, and I wanted the library at a path I chose.</li>
+<li><code>nodeAffinity</code> ties the volume, and every pod that uses it, to the node named walnut.</li>
+<li><code>Retain</code> keeps the files on disk when the claim is deleted.</li>
+</ul>
+<p>Each PVC names its PV with <code>volumeName: data</code>, so a claim can only bind to that one folder.</p>
+<h2 id="step-5-deploy-the-apps">Step 5: Deploy the apps</h2>
+<p>Each app has two files. A Deployment keeps one pod of the app running, and a Service gives that pod a stable name and address.</p>
+<p>Apply the namespace and storage first, so the claims exist before the pods ask for them:</p>
+<pre class="astro-code rose-pine-moon" style="background-color:#232136;color:#e0def4;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#EA9A97">kubectl</span><span style="color:#F6C177"> apply</span><span style="color:#3E8FB0"> -f</span><span style="color:#F6C177"> kubernetes/namespace.yaml</span></span>
+<span class="line"><span style="color:#EA9A97">kubectl</span><span style="color:#F6C177"> apply</span><span style="color:#3E8FB0"> -f</span><span style="color:#F6C177"> kubernetes/storage/</span></span>
+<span class="line"><span style="color:#3E8FB0">for</span><span style="color:#E0DEF4;font-style:italic"> app</span><span style="color:#3E8FB0"> in</span><span style="color:#F6C177"> bazarr</span><span style="color:#F6C177"> jellyfin</span><span style="color:#F6C177"> prowlarr</span><span style="color:#F6C177"> qbittorrent</span><span style="color:#F6C177"> radarr</span><span style="color:#F6C177"> seerr</span><span style="color:#F6C177"> sonarr</span><span style="color:#908CAA">;</span><span style="color:#3E8FB0"> do</span></span>
+<span class="line"><span style="color:#EA9A97">  kubectl</span><span style="color:#F6C177"> apply</span><span style="color:#3E8FB0"> -f</span><span style="color:#F6C177"> &quot;kubernetes/</span><span style="color:#E0DEF4;font-style:italic">$app</span><span style="color:#F6C177">/&quot;</span></span>
+<span class="line"><span style="color:#3E8FB0">done</span></span></code></pre>
+<p>The Service type decides who can reach an app. Jellyfin and Seerr use <code>LoadBalancer</code>, which ServiceLB maps to the desktop’s own ports. The five admin apps use <code>ClusterIP</code>, an address that only exists inside the cluster.</p>
+<figure class="diagram"><a href="/blog/k3s-media/access.svg" aria-label="Open the full-size diagram: A TV or phone at home or over Tailscale reaches ServiceLB on the host address, port 8096, which forwards to Jellyfin on 8096 and Seerr on 5055. Sonarr, Radarr, Prowlarr, Bazarr and qBittorrent are cluster only. Seerr calls them by name, for example http://sonarr:8989, and my terminal reaches them through kubectl port-forward."><img src="/blog/k3s-media/access.svg" alt="A TV or phone at home or over Tailscale reaches ServiceLB on the host address, port 8096, which forwards to Jellyfin on 8096 and Seerr on 5055. Sonarr, Radarr, Prowlarr, Bazarr and qBittorrent are cluster only. Seerr calls them by name, for example http://sonarr:8989, and my terminal reaches them through kubectl port-forward." loading="lazy"></a><figcaption>Two apps face the network; the other five stay inside the cluster.</figcaption></figure>
+<p>ServiceLB listens on the host, so the desktop’s Tailscale address works too. My phone reaches Jellyfin away from home with no extra setup.</p>
+<p>To open an admin app, forward its port to your own machine:</p>
+<pre class="astro-code rose-pine-moon" style="background-color:#232136;color:#e0def4;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#EA9A97">kubectl</span><span style="color:#F6C177"> port-forward</span><span style="color:#3E8FB0"> -n</span><span style="color:#F6C177"> media</span><span style="color:#F6C177"> service/sonarr</span><span style="color:#F6C177"> 8989:8989</span></span></code></pre>
+<p>The repository’s <code>port-forward.sh</code> does this for all five at once. Inside the cluster, CoreDNS turns a Service name into its address. Apps in the same namespace therefore reach each other at addresses like <code>http://sonarr:8989</code>, which step 7 uses throughout.</p>
+<h2 id="step-6-keep-downloads-inside-the-vpn">Step 6: Keep downloads inside the VPN</h2>
+<p>qBittorrent must never connect to peers without the VPN. The hotio image of qBittorrent includes WireGuard, a VPN protocol, and sets the tunnel up inside the pod:</p>
+<pre class="astro-code rose-pine-moon" style="background-color:#232136;color:#e0def4;overflow-x:auto" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#9CCFD8">env</span><span style="color:#908CAA">:</span></span>
+<span class="line"><span style="color:#908CAA">  -</span><span style="color:#9CCFD8"> name</span><span style="color:#908CAA">:</span><span style="color:#F6C177"> VPN_ENABLED</span></span>
+<span class="line"><span style="color:#9CCFD8">    value</span><span style="color:#908CAA">:</span><span style="color:#F6C177"> &quot;true&quot;</span></span>
+<span class="line"><span style="color:#908CAA">  -</span><span style="color:#9CCFD8"> name</span><span style="color:#908CAA">:</span><span style="color:#F6C177"> VPN_CONF</span></span>
+<span class="line"><span style="color:#9CCFD8">    value</span><span style="color:#908CAA">:</span><span style="color:#F6C177"> wg0</span></span>
+<span class="line"><span style="color:#908CAA">  -</span><span style="color:#9CCFD8"> name</span><span style="color:#908CAA">:</span><span style="color:#F6C177"> VPN_PROVIDER</span></span>
+<span class="line"><span style="color:#9CCFD8">    value</span><span style="color:#908CAA">:</span><span style="color:#F6C177"> proton</span></span>
+<span class="line"><span style="color:#908CAA">  -</span><span style="color:#9CCFD8"> name</span><span style="color:#908CAA">:</span><span style="color:#F6C177"> VPN_AUTO_PORT_FORWARD</span></span>
+<span class="line"><span style="color:#9CCFD8">    value</span><span style="color:#908CAA">:</span><span style="color:#F6C177"> &quot;true&quot;</span></span>
+<span class="line"><span style="color:#9CCFD8">securityContext</span><span style="color:#908CAA">:</span></span>
+<span class="line"><span style="color:#9CCFD8">  capabilities</span><span style="color:#908CAA">:</span></span>
+<span class="line"><span style="color:#9CCFD8">    add</span><span style="color:#908CAA">:</span><span style="color:#908CAA"> [</span><span style="color:#F6C177">NET_ADMIN</span><span style="color:#908CAA">]</span></span></code></pre>
+<p>The image reads <code>/config/wireguard/wg0.conf</code>, a file downloaded from Proton VPN and copied into qBittorrent’s config folder. <code>NET_ADMIN</code> lets the container create the <code>wg0</code> network interface and its firewall rules.</p>
+<p>Two layers stop leaks. The pod’s firewall drops all traffic by default and sends the rest through <code>wg0</code>. qBittorrent is also bound to <code>wg0</code>, so if the tunnel goes down it cannot reach peers at all.</p>
+<p>The image also asks Proton for a forwarded port, so other peers can connect in. qBittorrent waits for that port before it starts, as the pod log shows:</p>
+<pre class="astro-code rose-pine-moon" style="background-color:#232136;color:#e0def4;overflow-x:auto" tabindex="0" data-language="text"><code><span class="line"><span>[VPN] Interface [wg0] is online.</span></span>
+<span class="line"><span>[VPN] Routing all other IPv4 traffic via interface [wg0].</span></span>
+<span class="line"><span>[QBITTORRENT] Delaying start until forwarded port is available.</span></span>
+<span class="line"><span>[FORWARDER] Forwarded port is [&lt;port&gt;].</span></span></code></pre>
+<h2 id="step-7-connect-the-apps-by-hand">Step 7: Connect the apps by hand</h2>
+<p>The manifests start seven apps that know nothing about each other. Their connections live in each app’s own settings, saved in its config folder, so you set them once in each web page.</p>
+<p>Order matters, because each app points at the ones set up before it. Sonarr and Radarr each show an API key under Settings, General; Prowlarr, Bazarr and Seerr ask for those keys.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:right">Order</th>
+<th>App</th>
+<th>Setting</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">1</td>
+<td>qBittorrent</td>
+<td>Advanced, network interface</td>
+<td><code>wg0</code></td>
+</tr>
+<tr>
+<td style="text-align:right"></td>
+<td></td>
+<td>Default save path</td>
+<td><code>/data/torrents</code></td>
+</tr>
+<tr>
+<td style="text-align:right">2</td>
+<td>Sonarr</td>
+<td>Root folders</td>
+<td><code>/data/media/series</code> and <code>/data/media/anime</code></td>
+</tr>
+<tr>
+<td style="text-align:right"></td>
+<td></td>
+<td>Download client</td>
+<td>qBittorrent at host <code>qbittorrent</code>, port 8080, category <code>tv-sonarr</code></td>
+</tr>
+<tr>
+<td style="text-align:right">3</td>
+<td>Radarr</td>
+<td>Root folder</td>
+<td><code>/data/media/movies</code></td>
+</tr>
+<tr>
+<td style="text-align:right"></td>
+<td></td>
+<td>Download client</td>
+<td>qBittorrent at host <code>qbittorrent</code>, port 8080, category <code>radarr</code></td>
+</tr>
+<tr>
+<td style="text-align:right">4</td>
+<td>Prowlarr</td>
+<td>Indexers</td>
+<td>Add each indexer site you use</td>
+</tr>
+<tr>
+<td style="text-align:right"></td>
+<td></td>
+<td>Apps</td>
+<td>Sonarr at <code>http://sonarr:8989</code> and Radarr at <code>http://radarr:7878</code>, with full sync</td>
+</tr>
+<tr>
+<td style="text-align:right">5</td>
+<td>Bazarr</td>
+<td>Sonarr and Radarr</td>
+<td>Hosts <code>sonarr</code> and <code>radarr</code>, with their ports and API keys</td>
+</tr>
+<tr>
+<td style="text-align:right"></td>
+<td></td>
+<td>Languages and providers</td>
+<td>The subtitle languages and sites you want</td>
+</tr>
+<tr>
+<td style="text-align:right">6</td>
+<td>Jellyfin</td>
+<td>Libraries</td>
+<td>Shows at <code>/media/series</code>, Anime at <code>/media/anime</code>, Movies at <code>/media/movies</code></td>
+</tr>
+<tr>
+<td style="text-align:right">7</td>
+<td>Seerr</td>
+<td>Media server</td>
+<td>Jellyfin at host <code>jellyfin</code>, port 8096</td>
+</tr>
+<tr>
+<td style="text-align:right"></td>
+<td></td>
+<td>Services</td>
+<td>Sonarr and Radarr by host name, with the same root folders as above</td>
+</tr>
+</tbody>
+</table>
+<p>Two details are easy to get wrong:</p>
+<ul>
+<li>The category tags each download, so Sonarr and Radarr only import their own files.</li>
+<li>Jellyfin’s paths start at <code>/media</code>, while every other app uses <code>/data/media</code>. Both point at the same folder, mounted differently.</li>
+</ul>
+<p>Prowlarr’s full sync pushes every indexer to Sonarr and Radarr. Adding a new indexer in Prowlarr is then enough for both.</p>
+<h2 id="how-much-it-uses">How much it uses</h2>
+<p>At idle, the seven apps use about 1.2 GiB of memory between them, on a desktop with 30 GiB. Each used 1 millicore of CPU, a thousandth of one core.</p>
+<figure class="viz" data-view="0"><figcaption class="viz-head"><span class="viz-title">The k3s server uses more memory than any single app</span><span class="viz-subtitle">Memory in MiB at idle on 28 Oct 2026. Apps measured with kubectl top; the k3s server is its resident memory from ps.</span></figcaption><div class="viz-plot"><svg viewBox="0 0 640 290" role="img" aria-label="The k3s server uses more memory than any single app"><g><line class="viz-baseline" x1="48" x2="622" y1="250" y2="250"></line><text x="40" y="253.5" text-anchor="end">0</text></g><g><line class="viz-grid" x1="48" x2="622" y1="191" y2="191"></line><text x="40" y="194.5" text-anchor="end">200</text></g><g><line class="viz-grid" x1="48" x2="622" y1="132" y2="132"></line><text x="40" y="135.5" text-anchor="end">400</text></g><g><line class="viz-grid" x1="48" x2="622" y1="73" y2="73"></line><text x="40" y="76.5" text-anchor="end">600</text></g><g><line class="viz-grid" x1="48" x2="622" y1="14" y2="14"></line><text x="40" y="17.5" text-anchor="end">800</text></g><text class="viz-label" x="83.875" y="266" text-anchor="middle"><tspan x="83.875" dy="0">k3s server</tspan></text><text class="viz-label" x="155.625" y="266" text-anchor="middle"><tspan x="155.625" dy="0">Jellyfin</tspan></text><text class="viz-label" x="227.375" y="266" text-anchor="middle"><tspan x="227.375" dy="0">Seerr</tspan></text><text class="viz-label" x="299.125" y="266" text-anchor="middle"><tspan x="299.125" dy="0">Bazarr</tspan></text><text class="viz-label" x="370.875" y="266" text-anchor="middle"><tspan x="370.875" dy="0">Radarr</tspan></text><text class="viz-label" x="442.625" y="266" text-anchor="middle"><tspan x="442.625" dy="0">Sonarr</tspan></text><text class="viz-label" x="514.375" y="266" text-anchor="middle"><tspan x="514.375" dy="0">Prowlarr</tspan></text><text class="viz-label" x="586.125" y="266" text-anchor="middle"><tspan x="586.125" dy="0">qBittorrent</tspan></text><text class="viz-axis-title" x="335" y="286" text-anchor="middle">Process</text><text class="viz-axis-title" transform="translate(12 132) rotate(-90)" text-anchor="middle">MiB</text><g data-view-panel="0" style><g data-tip="{&quot;title&quot;:&quot;k3s server&quot;,&quot;rows&quot;:[{&quot;name&quot;:&quot;Memory&quot;,&quot;color&quot;:&quot;#3987e5&quot;,&quot;value&quot;:&quot;705&quot;}]}" tabindex="0"><rect class="viz-hitbox" x="71.875" y="14" width="24" height="236"></rect><path class="viz-mark" d="M72.875 250 V46.025000000000006 Q72.875 42.025000000000006 76.875 42.025000000000006 H90.875 Q94.875 42.025000000000006 94.875 46.025000000000006 V250 Z" fill="#3987e5"></path></g><g data-tip="{&quot;title&quot;:&quot;Jellyfin&quot;,&quot;rows&quot;:[{&quot;name&quot;:&quot;Memory&quot;,&quot;color&quot;:&quot;#3987e5&quot;,&quot;value&quot;:&quot;293&quot;}]}" tabindex="0"><rect class="viz-hitbox" x="143.625" y="14" width="24" height="236"></rect><path class="viz-mark" d="M144.625 250 V167.565 Q144.625 163.565 148.625 163.565 H162.625 Q166.625 163.565 166.625 167.565 V250 Z" fill="#3987e5"></path></g><g data-tip="{&quot;title&quot;:&quot;Seerr&quot;,&quot;rows&quot;:[{&quot;name&quot;:&quot;Memory&quot;,&quot;color&quot;:&quot;#3987e5&quot;,&quot;value&quot;:&quot;193&quot;}]}" tabindex="0"><rect class="viz-hitbox" x="215.375" y="14" width="24" height="236"></rect><path class="viz-mark" d="M216.375 250 V197.065 Q216.375 193.065 220.375 193.065 H234.375 Q238.375 193.065 238.375 197.065 V250 Z" fill="#3987e5"></path></g><g data-tip="{&quot;title&quot;:&quot;Bazarr&quot;,&quot;rows&quot;:[{&quot;name&quot;:&quot;Memory&quot;,&quot;color&quot;:&quot;#3987e5&quot;,&quot;value&quot;:&quot;181&quot;}]}" tabindex="0"><rect class="viz-hitbox" x="287.125" y="14" width="24" height="236"></rect><path class="viz-mark" d="M288.125 250 V200.605 Q288.125 196.605 292.125 196.605 H306.125 Q310.125 196.605 310.125 200.605 V250 Z" fill="#3987e5"></path></g><g data-tip="{&quot;title&quot;:&quot;Radarr&quot;,&quot;rows&quot;:[{&quot;name&quot;:&quot;Memory&quot;,&quot;color&quot;:&quot;#3987e5&quot;,&quot;value&quot;:&quot;179&quot;}]}" tabindex="0"><rect class="viz-hitbox" x="358.875" y="14" width="24" height="236"></rect><path class="viz-mark" d="M359.875 250 V201.195 Q359.875 197.195 363.875 197.195 H377.875 Q381.875 197.195 381.875 201.195 V250 Z" fill="#3987e5"></path></g><g data-tip="{&quot;title&quot;:&quot;Sonarr&quot;,&quot;rows&quot;:[{&quot;name&quot;:&quot;Memory&quot;,&quot;color&quot;:&quot;#3987e5&quot;,&quot;value&quot;:&quot;178&quot;}]}" tabindex="0"><rect class="viz-hitbox" x="430.625" y="14" width="24" height="236"></rect><path class="viz-mark" d="M431.625 250 V201.48999999999998 Q431.625 197.48999999999998 435.625 197.48999999999998 H449.625 Q453.625 197.48999999999998 453.625 201.48999999999998 V250 Z" fill="#3987e5"></path></g><g data-tip="{&quot;title&quot;:&quot;Prowlarr&quot;,&quot;rows&quot;:[{&quot;name&quot;:&quot;Memory&quot;,&quot;color&quot;:&quot;#3987e5&quot;,&quot;value&quot;:&quot;147&quot;}]}" tabindex="0"><rect class="viz-hitbox" x="502.375" y="14" width="24" height="236"></rect><path class="viz-mark" d="M503.375 250 V210.63500000000002 Q503.375 206.63500000000002 507.375 206.63500000000002 H521.375 Q525.375 206.63500000000002 525.375 210.63500000000002 V250 Z" fill="#3987e5"></path></g><g data-tip="{&quot;title&quot;:&quot;qBittorrent&quot;,&quot;rows&quot;:[{&quot;name&quot;:&quot;Memory&quot;,&quot;color&quot;:&quot;#3987e5&quot;,&quot;value&quot;:&quot;37&quot;}]}" tabindex="0"><rect class="viz-hitbox" x="574.125" y="14" width="24" height="236"></rect><path class="viz-mark" d="M575.125 250 V243.085 Q575.125 239.085 579.125 239.085 H593.125 Q597.125 239.085 597.125 243.085 V250 Z" fill="#3987e5"></path></g></g></svg></div><details class="viz-table"><summary>Show the data</summary><div data-view-panel="0" style><table><thead><tr><th scope="col">Process</th><th scope="col">Memory</th></tr></thead><tbody><tr><th scope="row">k3s server</th><td>705</td></tr><tr><th scope="row">Jellyfin</th><td>293</td></tr><tr><th scope="row">Seerr</th><td>193</td></tr><tr><th scope="row">Bazarr</th><td>181</td></tr><tr><th scope="row">Radarr</th><td>179</td></tr><tr><th scope="row">Sonarr</th><td>178</td></tr><tr><th scope="row">Prowlarr</th><td>147</td></tr><tr><th scope="row">qBittorrent</th><td>37</td></tr></tbody></table></div></details></figure><script type="module">function e(e){let t=e.querySelector(`.viz-tip`);return t||(t=document.createElement(`div`),t.className=`viz-tip`,t.setAttribute(`role`,`status`),e.querySelector(`.viz-plot`)?.append(t)),t}function t(t,n,r,i,a){let o=e(t);o.replaceChildren();let s=document.createElement(`div`);s.className=`viz-tip-title`,s.textContent=n,o.append(s);for(let e of r){let t=document.createElement(`div`);t.className=`viz-tip-row`;let n=document.createElement(`span`);n.className=`viz-tip-key`,n.style.background=e.color;let r=document.createElement(`strong`);r.textContent=e.value;let i=document.createElement(`span`);i.textContent=e.name,t.append(n,r,i),o.append(t)}let c=t.querySelector(`.viz-plot`),l=c.getBoundingClientRect();o.style.display=`block`;let u=o.offsetWidth,d=Math.min(Math.max(i-l.left+c.scrollLeft+14,4),c.scrollWidth-u-4);o.style.left=`${d}px`,o.style.top=`${Math.max(a-l.top-10,0)}px`}function n(e){let t=e.querySelector(`.viz-tip`);t&&(t.style.display=`none`)}function r(e){e.querySelectorAll(`[data-tip]`).forEach(r=>{let i=(n,i)=>{let a=JSON.parse(r.dataset.tip);e.querySelectorAll(`.is-hover`).forEach(e=>e.classList.remove(`is-hover`)),r.classList.add(`is-hover`),t(e,a.title,a.rows,n,i)};r.addEventListener(`pointermove`,e=>i(e.clientX,e.clientY)),r.addEventListener(`focus`,()=>{let e=r.getBoundingClientRect();i(e.right,e.top)});let a=()=>{r.classList.remove(`is-hover`),n(e)};r.addEventListener(`pointerleave`,a),r.addEventListener(`blur`,a)})}function i(e){e.querySelectorAll(`svg[data-cross]`).forEach(r=>{let i=JSON.parse(r.dataset.cross),a=r.querySelector(`.viz-cross`),o=r.querySelector(`.viz-cross-dots`),s=()=>Number(e.dataset.view??0),c=(n,c)=>{let l=r.createSVGPoint();l.x=n,l.y=c;let u=l.matrixTransform(r.getScreenCTM().inverse()),d=0;i.xs.forEach((e,t)=>{Math.abs(e-u.x)<Math.abs(i.xs[d]-u.x)&&(d=t)});let f=i.xs[d];a.setAttribute(`x1`,String(f)),a.setAttribute(`x2`,String(f)),a.style.display=`block`;let p=i.views[s()].series;o.replaceChildren();for(let e of p){let t=document.createElementNS(`http://www.w3.org/2000/svg`,`circle`);t.setAttribute(`cx`,String(f)),t.setAttribute(`cy`,String(e.ys[d])),t.setAttribute(`r`,`4.5`),t.setAttribute(`fill`,e.color),t.setAttribute(`class`,`viz-dot`),o.append(t)}let m=p.map(e=>({name:e.name,color:e.color,value:e.values[d],sort:e.ys[d]})).sort((e,t)=>e.sort-t.sort);t(e,i.labels[d],m,n,c)},l=r.querySelector(`.viz-hit`);l.addEventListener(`pointermove`,e=>c(e.clientX,e.clientY)),l.addEventListener(`pointerleave`,()=>{a.style.display=`none`,o.replaceChildren(),n(e)})})}function a(e){let t=e.querySelectorAll(`.viz-views button`);t.forEach(n=>{n.addEventListener(`click`,()=>{let r=n.dataset.view;e.dataset.view=r,t.forEach(e=>e.setAttribute(`aria-pressed`,String(e===n))),e.querySelectorAll(`[data-view-panel]`).forEach(e=>{e.style.display=e.dataset.viewPanel===r?``:`none`})})})}document.querySelectorAll(`.viz`).forEach(e=>{a(e),r(e),i(e)});</script>
+<p>The k3s server takes about 0.7 GiB, more than Jellyfin. That is the cost of running Kubernetes itself on this machine.</p>
+<h2 id="what-went-wrong-evictions-when-the-disk-filled">What went wrong: evictions when the disk filled</h2>
+<p>Kubernetes protects a node by evicting pods when free disk space drops below a threshold. k3s sets that threshold at 5% free, which on this 882 GiB disk is about 47 GB.</p>
+<p>The same disk holds everything else I do on the desktop. In October it crossed the line, and Kubernetes evicted Jellyfin with this message:</p>
+<pre class="astro-code rose-pine-moon" style="background-color:#232136;color:#e0def4;overflow-x:auto" tabindex="0" data-language="text"><code><span class="line"><span>The node was low on resource: ephemeral-storage.</span></span>
+<span class="line"><span>Container jellyfin was using 63632Ki, request is 0,</span></span>
+<span class="line"><span>has larger consumption of ephemeral-storage.</span></span></code></pre>
+<p>Jellyfin went first because it used the most scratch space. While the disk stayed low, every new Jellyfin pod was rejected on arrival, and ten failed pods were left in the list.</p>
+<p>Freeing space fixed it. These two commands show the pressure and clear the failed pods:</p>
+<pre class="astro-code rose-pine-moon" style="background-color:#232136;color:#e0def4;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#EA9A97">kubectl</span><span style="color:#F6C177"> describe</span><span style="color:#F6C177"> node</span><span style="color:#F6C177"> walnut</span><span style="color:#3E8FB0"> |</span><span style="color:#EA9A97"> grep</span><span style="color:#3E8FB0"> -i</span><span style="color:#F6C177"> pressure</span></span>
+<span class="line"><span style="color:#EA9A97">kubectl</span><span style="color:#F6C177"> delete</span><span style="color:#F6C177"> pod</span><span style="color:#3E8FB0"> -n</span><span style="color:#F6C177"> media</span><span style="color:#3E8FB0"> --field-selector=status.phase=Failed</span></span></code></pre>
+<h2 id="limits">Limits</h2>
+<ul>
+<li>One node runs everything. When the desktop is off, so is the stack, and the local volumes tie every app to that one machine.</li>
+<li>App settings live in the config folders, outside git. Rebuilding from scratch means repeating step 7 by hand.</li>
+<li>The images use the <code>latest</code> tag, so a restart can pull a new version without warning.</li>
+<li>Jellyfin transcodes on the CPU. The GPU is available to pods, but Jellyfin is not set up to use it yet.</li>
+<li>The media disk is the system disk, so the eviction above can happen again.</li>
+</ul></article></main><footer class="site-footer"><div class="shell footer-content"><span>© 2026 Felipe Coutinho</span><a class="rose-pine-credit" href="https://rosepinetheme.com/"><img src="/rose-pine.png" width="20" height="20" alt="">Made with Rosé Pine</a></div></footer><script type="module" src="/_astro/Analytics.astro_astro_type_script_index_0_lang.LkRyn5fT.js"></script></body></html>

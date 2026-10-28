@@ -38,7 +38,7 @@ export const judgeVsLabelGroups = [
 
 DeepSeek V4 Flash agreed with my hand labels at Cohen's kappa 0.83 on 81 statements. All seven of its errors accepted a claim the context did not support. Its faithfulness scores are therefore an upper bound.
 
-The data is from [papers-please](https://github.com/fcoelhomrc/papers-please) at commit `361ff06` (12 Sep 2026).
+The data is from the [Scientific Paper Semantic Search repository](https://github.com/fcoelhomrc/papers-please) at commit `361ff06` (12 Sep 2026).
 
 ## The judge answers one yes-or-no question
 
@@ -83,7 +83,7 @@ On all 81 statements, kappa was 0.828 and accuracy 0.914. Without the four dispu
   tn={kappa.tn}
   fp={kappa.fp}
   fn={kappa.fn}
-  source="Commit 363e016 in papers-please."
+  source="Commit 363e016 in the project repository."
 />
 
 Three errors are true-but-absent statements: correct facts the passage does not state. The other four are the disputed statements, which I worked out from the two accuracy figures (77 statements at 0.961 leave three errors). The judge made no errors on wrong entities, wrong numbers, negations, unsupported causes or unrelated text.
@@ -103,7 +103,7 @@ Qwen3 30B answered all 100 questions from the top 10 chunks of each retriever, a
   groupLabel="Ragas metric"
   colors={retrieverColors}
   views={[{ label: "Judged", groups: judgedGroups }]}
-  source="Issue #48 in papers-please. bge-large's answer relevancy was scored before the judge's embedding model was pinned, so that one value is not comparable."
+  source="Issue #48 in the project repository. bge-large's answer relevancy was scored before the judge's embedding model was pinned, so that one value is not comparable."
 />
 
 BM25 never abstained, and each encoder abstained three or four times. These runs use the same 100 questions as part 2, so they share its vocabulary bias toward BM25.
@@ -118,7 +118,7 @@ The judge rates BM25 retrieval higher than the labels do. Its context recall is 
   yStep={0.2}
   colors={{ "Chunk-id labels": SLOTS[0], "LLM judge": SLOTS[1] }}
   views={[{ label: "BM25", groups: judgeVsLabelGroups }]}
-  source="Read from assets/eval/svg/light/bm25/judge-vs-labels.svg in papers-please."
+  source="Read from assets/eval/svg/light/bm25/judge-vs-labels.svg in the project repository."
 />
 
 Two causes fit, and this data cannot separate them. The labels miss relevant chunks that were not seeds, and the judge is lenient.
@@ -140,6 +140,8 @@ The four judged runs in #48 cost $0.765 together, about $0.19 per run of 100 que
 Opened by Claude Code on 28 Oct 2026, while drafting this post with me.
 
 - Norman, Rivera and Hughes, [Reliability without Validity](https://arxiv.org/html/2606.19544v1) (arXiv, 2026), section 4.1.
-- papers-please at [`361ff06`](https://github.com/fcoelhomrc/papers-please/tree/361ff06) (12 Sep 2026): commit [`363e016`](https://github.com/fcoelhomrc/papers-please/commit/363e016) for kappa and the error counts, issue [#48](https://github.com/fcoelhomrc/papers-please/issues/48) for the judged runs and cost.
+- Scientific Paper Semantic Search repository at [`361ff06`](https://github.com/fcoelhomrc/papers-please/tree/361ff06) (12 Sep 2026).
+- Commit [`363e016`](https://github.com/fcoelhomrc/papers-please/commit/363e016) for kappa and the error counts.
+- Issue [#48](https://github.com/fcoelhomrc/papers-please/issues/48) for the judged runs and their cost.
 - [`docs/judge-selection-experiment.md`](https://github.com/fcoelhomrc/papers-please/blob/361ff06/docs/judge-selection-experiment.md) for the case types, the labelling and the cost estimate.
 - Committed figures under [`assets/eval/svg/light/`](https://github.com/fcoelhomrc/papers-please/tree/361ff06/assets/eval/svg/light), read back from their coordinates.

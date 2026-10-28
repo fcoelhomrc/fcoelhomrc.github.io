@@ -32,11 +32,11 @@ export const skewView = (label, v) => ({
 
 I built 100 test questions over 100 machine learning papers, and each question records the ids of the chunks it was written from. Scoring retrieval then needs no model: compare the retrieved ids with the gold ids. Parts 2 and 3 use this set.
 
-The code is in [papers-please](https://github.com/fcoelhomrc/papers-please), checked at commit `361ff06` (12 Sep 2026).
+The code is in the [Scientific Paper Semantic Search repository](https://github.com/fcoelhomrc/papers-please), checked at commit `361ff06` (12 Sep 2026).
 
 ## The system
 
-Papers, Please downloads papers, splits them into 256-token chunks and searches them with BM25 and dense vectors. A chat agent answers questions from the search results.
+Scientific Paper Semantic Search downloads papers, splits them into 256-token chunks and searches them with BM25 and dense vectors. A chat agent answers questions from the search results.
 
 <Diagram src="blog/rag-eval/system.svg" alt="Ingest workers fetch arXiv PDFs, run OCR and embed chunks into Postgres and Pinecone. The query path sends questions from the web app to a LangGraph agent, which searches both stores and sends traces to Phoenix." />
 
@@ -88,7 +88,7 @@ The first set drew 80 seed chunks from each topic, yet after review 58 of its 10
   groupLabel="Topic"
   colors={skewColors}
   views={[skewView("First set", topicSkew.v1), skewView("Second set, generated per topic", topicSkew.v2)]}
-  source="eval/testset/v1/ and eval/testset/ in papers-please."
+  source="eval/testset/v1/ and eval/testset/ in the project repository."
 />
 
 Review kept 62% to 87% of each topic, so the skew came from generation. Generating each topic on its own, 31 questions per topic, fixed it ([aa30c9e](https://github.com/fcoelhomrc/papers-please/commit/aa30c9e)).
@@ -106,7 +106,7 @@ A review pass dropped 34 questions, and a quota of 20 per topic cut 21 more ([65
   digits={0}
   colors={{ Questions: SLOTS[0] }}
   views={[{ label: "Flags", groups: dropFlags.map((f) => ({ label: f.label, bars: [{ name: "Questions", value: f.n }] })) }]}
-  source="eval/testset/judged.jsonl in papers-please, last verdict per question."
+  source="eval/testset/judged.jsonl in the project repository, last verdict per question."
 />
 
 A question that names its own answer, such as one asking which MiniLM variant a paper used, is found by BM25 on that name alone. Every configuration then scores the same on it. Multi-hop abstract questions often ask about "these approaches" without saying which.
@@ -125,7 +125,7 @@ The review prompt caused one wrong result of its own. It dropped 80% of question
   groupLabel="Question type"
   colors={{ Generated: SLOTS[1], Kept: SLOTS[2] }}
   views={[{ label: "Mix", groups: synthMix.map((s) => ({ label: s.label, bars: [{ name: "Generated", value: s.generated }, { name: "Kept", value: s.kept }] })) }]}
-  source="eval/testset/generated.jsonl and curated.jsonl in papers-please."
+  source="eval/testset/generated.jsonl and curated.jsonl in the project repository."
 />
 
 Of the kept questions, 46 have one gold chunk, 45 have two and 9 have three.
@@ -140,6 +140,6 @@ Of the kept questions, 46 have one gold chunk, 45 have two and 9 have three.
 
 Opened by Claude Code on 28 Oct 2026, while drafting this post with me.
 
-- papers-please at [`361ff06`](https://github.com/fcoelhomrc/papers-please/tree/361ff06) (12 Sep 2026): issues [#41](https://github.com/fcoelhomrc/papers-please/issues/41), [#43](https://github.com/fcoelhomrc/papers-please/issues/43), [#44](https://github.com/fcoelhomrc/papers-please/issues/44), [#47](https://github.com/fcoelhomrc/papers-please/issues/47).
+- Scientific Paper Semantic Search repository at [`361ff06`](https://github.com/fcoelhomrc/papers-please/tree/361ff06) (12 Sep 2026): issues [#41](https://github.com/fcoelhomrc/papers-please/issues/41), [#43](https://github.com/fcoelhomrc/papers-please/issues/43), [#44](https://github.com/fcoelhomrc/papers-please/issues/44), [#47](https://github.com/fcoelhomrc/papers-please/issues/47).
 - Commits [0e8490c](https://github.com/fcoelhomrc/papers-please/commit/0e8490c) (first set archived), [aa30c9e](https://github.com/fcoelhomrc/papers-please/commit/aa30c9e) (per-topic generation) and [6513c33](https://github.com/fcoelhomrc/papers-please/commit/6513c33) (review).
 - Question files under [`services/backend/eval/testset/`](https://github.com/fcoelhomrc/papers-please/tree/361ff06/services/backend/eval/testset), counted directly.

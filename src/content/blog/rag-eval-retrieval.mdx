@@ -57,7 +57,7 @@ export const armView = (label, rows) => ({
 
 On this corpus BM25 beat every dense encoder used on its own. Only Arctic Embed M v2, fused with BM25, beat BM25 alone: +0.055 nDCG@10 (95% CI +0.012 to +0.098). The cross-encoder reranker and all four query rewrites never helped.
 
-Every number here compares retrieved chunk ids with the gold ids from [part 1](../rag-eval-test-set/), so none of it needed a model call. The data is from [papers-please](https://github.com/fcoelhomrc/papers-please) at commit `361ff06` (12 Sep 2026).
+Every number here compares retrieved chunk ids with the gold ids from [part 1](../rag-eval-test-set/), so none of it needed a model call. The data is from the [Scientific Paper Semantic Search repository](https://github.com/fcoelhomrc/papers-please) at commit `361ff06` (12 Sep 2026).
 
 ## Two scoring branches
 
@@ -95,7 +95,7 @@ Fused with BM25, Arctic has the highest recall at every depth. With the other th
   logX
   colors={MODE_COLORS}
   views={[depthViews[2], depthViews[0], depthViews[1], depthViews[3]]}
-  source="Read from assets/eval/svg/light/<encoder>/retrieval-depth.svg in papers-please."
+  source="Read from assets/eval/svg/light/<encoder>/retrieval-depth.svg in the project repository."
 />
 
 Postgres `ts_rank` trails BM25 because its two-argument form has no inverse document frequency and no length normalisation.
@@ -118,7 +118,7 @@ Moving from bge-small to bge-large added 0.019 nDCG@10, while switching to Arcti
   colors={MODE_COLORS}
   reference={{ value: 0.705, label: "BM25 alone" }}
   views={[encoderView("ndcg", "nDCG@10"), encoderView("recall", "Recall@10"), encoderView("mrr", "MRR")]}
-  source="Issues #48 (dense alone) and #49 (fused) in papers-please."
+  source="Issues #48 (dense alone) and #49 (fused) in the project repository."
 />
 
 <ForestPlot
@@ -130,7 +130,7 @@ Moving from bge-small to bge-large added 0.019 nDCG@10, while switching to Arcti
   rowLabel="Dense encoder"
   colors={{ "Top 10": SLOTS[0], "Top 50": SLOTS[1] }}
   rows={pairedRows}
-  source="Issue #49 in papers-please."
+  source="Issue #49 in the project repository."
 />
 
 Qwen3 Embedding on its own has the second-best recall (0.767) and the worst R-precision (0.380). It finds the right chunk and ranks it low.
@@ -150,7 +150,7 @@ At matched output size, the reranker cost Arctic 0.05 to 0.10 nDCG. The bge mode
   groupLabel="Chunks returned"
   colors={{ "No reranker": SLOTS[0], "Cross-encoder": SLOTS[1] }}
   views={[rerankViews[2], rerankViews[0], rerankViews[1], rerankViews[3]]}
-  source="Read from assets/eval/svg/light/<encoder>/rerank-matched.svg in papers-please."
+  source="Read from assets/eval/svg/light/<encoder>/rerank-matched.svg in the project repository."
 />
 
 I have not tested why. The model, `ms-marco-MiniLM-L-6-v2`, was trained on web search queries, and paper text may be too far from them.
@@ -168,7 +168,7 @@ I tested four rewrites: sub-questions, paraphrases, each of those with the origi
   groupLabel="Chunks returned"
   colors={ARM_COLORS}
   views={[armView("Dense (Arctic)", figures.arms["arctic-m-v2"].Dense), armView("BM25", figures.arms["arctic-m-v2"].BM25)]}
-  source="Read from assets/eval/svg/light/arctic-m-v2/query-arms.svg in papers-please."
+  source="Read from assets/eval/svg/light/arctic-m-v2/query-arms.svg in the project repository."
 />
 
 Paraphrases lost the most, and HyDE lost more still with Arctic. My guess is that these questions already use the paper's words, so any rewrite moves away from them.
@@ -183,6 +183,6 @@ The test questions reuse the papers' words, which favours BM25. Whether BM25 sti
 
 Opened by Claude Code on 28 Oct 2026, while drafting this post with me.
 
-- papers-please at [`361ff06`](https://github.com/fcoelhomrc/papers-please/tree/361ff06) (12 Sep 2026): issues [#45](https://github.com/fcoelhomrc/papers-please/issues/45), [#47](https://github.com/fcoelhomrc/papers-please/issues/47), [#48](https://github.com/fcoelhomrc/papers-please/issues/48), [#49](https://github.com/fcoelhomrc/papers-please/issues/49).
+- Scientific Paper Semantic Search repository at [`361ff06`](https://github.com/fcoelhomrc/papers-please/tree/361ff06) (12 Sep 2026): issues [#45](https://github.com/fcoelhomrc/papers-please/issues/45), [#47](https://github.com/fcoelhomrc/papers-please/issues/47), [#48](https://github.com/fcoelhomrc/papers-please/issues/48), [#49](https://github.com/fcoelhomrc/papers-please/issues/49).
 - [`docs/rag-evaluation.md`](https://github.com/fcoelhomrc/papers-please/blob/361ff06/docs/rag-evaluation.md), section 8, for the power figures.
 - Committed figures under [`assets/eval/svg/light/`](https://github.com/fcoelhomrc/papers-please/tree/361ff06/assets/eval/svg/light). The curves and bars here were read back from their coordinates and match the issue tables to three decimals.

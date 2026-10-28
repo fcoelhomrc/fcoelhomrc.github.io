@@ -114,6 +114,8 @@ export const projects = [
     description:
       "An end-to-end pipeline for training, tracking, promoting, containerizing, and deploying image classification models behind an inference API on AWS.",
     repository: "https://github.com/fcoelhomrc/ml-model-serving",
+    coverImage: "ml-model-serving.png",
+    coverAlt: "Training, CI/CD and AWS serving flow: MLflow and S3 to an EC2 FastAPI container deployed by GitHub Actions and Ansible",
     tags: [
       "Python",
       "PyTorch",
